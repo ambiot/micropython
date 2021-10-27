@@ -384,30 +384,30 @@ void gc_sweep_all(void) {
 
 void gc_info(gc_info_t *info) {
     GC_ENTER();
-    info->total = MP_STATE_MEM(gc_pool_end) - MP_STATE_MEM(gc_pool_start);
-    info->used = 0;
-    info->free = 0;
-    info->max_free = 0;
-    info->num_1block = 0;
-    info->num_2block = 0;
-    info->max_block = 0;
+    info->_total = MP_STATE_MEM(gc_pool_end) - MP_STATE_MEM(gc_pool_start);
+    info->_used = 0;
+    info->_free = 0;
+    info->_max_free = 0;
+    info->_num_1block = 0;
+    info->_num_2block = 0;
+    info->_max_block = 0;
     bool finish = false;
     for (size_t block = 0, len = 0, len_free = 0; !finish;) {
         size_t kind = ATB_GET_KIND(block);
         switch (kind) {
             case AT_FREE:
-                info->free += 1;
+                info->_free += 1;
                 len_free += 1;
                 len = 0;
                 break;
 
             case AT_HEAD:
-                info->used += 1;
+                info->_used += 1;
                 len = 1;
                 break;
 
             case AT_TAIL:
-                info->used += 1;
+                info->_used += 1;
                 len += 1;
                 break;
 
@@ -425,24 +425,24 @@ void gc_info(gc_info_t *info) {
 
         if (finish || kind == AT_FREE || kind == AT_HEAD) {
             if (len == 1) {
-                info->num_1block += 1;
+                info->_num_1block += 1;
             } else if (len == 2) {
-                info->num_2block += 1;
+                info->_num_2block += 1;
             }
-            if (len > info->max_block) {
-                info->max_block = len;
+            if (len > info->_max_block) {
+                info->_max_block = len;
             }
             if (finish || kind == AT_HEAD) {
-                if (len_free > info->max_free) {
-                    info->max_free = len_free;
+                if (len_free > info->_max_free) {
+                    info->_max_free = len_free;
                 }
                 len_free = 0;
             }
         }
     }
 
-    info->used *= BYTES_PER_BLOCK;
-    info->free *= BYTES_PER_BLOCK;
+    info->_used *= BYTES_PER_BLOCK;
+    info->_free *= BYTES_PER_BLOCK;
     GC_EXIT();
 }
 
@@ -810,9 +810,9 @@ void gc_dump_info(void) {
     gc_info_t info;
     gc_info(&info);
     mp_printf(&mp_plat_print, "GC: total: %u, used: %u, free: %u\n",
-        (uint)info.total, (uint)info.used, (uint)info.free);
+        (uint)info._total, (uint)info._used, (uint)info._free);
     mp_printf(&mp_plat_print, " No. of 1-blocks: %u, 2-blocks: %u, max blk sz: %u, max free sz: %u\n",
-        (uint)info.num_1block, (uint)info.num_2block, (uint)info.max_block, (uint)info.max_free);
+        (uint)info._num_1block, (uint)info._num_2block, (uint)info._max_block, (uint)info._max_free);
 }
 
 void gc_dump_alloc_table(void) {
