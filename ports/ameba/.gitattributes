@@ -1,0 +1,7 @@
+# These are binary so should never be modified by git.
+*.a binary
+*.mpy binary
+*.bz2 binary
+*.tar binary
+*.exe binary
+*.bin binary

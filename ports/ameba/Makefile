@@ -10,7 +10,7 @@ include $(TOP)/py/py.mk
 OS := $(shell uname)
 CHIP := AMEBAD
 DEBUG := 1
-VENDOR := amebad_vendor/sdk
+VENDOR := ../../lib/ameba_sdk/MicroPython_RTL8722/ports/rtl8722/amebad_vendor/sdk
 TOOL := amebad_tool/tools
 
 #$(info ## This build only supports Cygwin and Linux!)
@@ -40,7 +40,7 @@ BUILDTOOL_PATH := tools/windows
 UPLOAD_PATH := COM8
 POSTBUILDTOOL_PATH := amebad_tool/tools/windows
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross.exe
-LINKER_SCRIPT = amebad_vendor/linker_script
+LINKER_SCRIPT = 
 else ifeq ($(findstring Linux, $(OS)), Linux)
 # Linux
 TC_PATH := 
@@ -63,7 +63,7 @@ BUILDTOOL_PATH := tools/linux
 UPLOAD_PATH := /dev/ttyUSB0
 POSTBUILDTOOL_PATH := amebad_tool/tools/linux
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
-LINKER_SCRIPT = amebad_vendor/linker_script
+LINKER_SCRIPT = 
 else
 # MacOS
 TC_PATH := 
@@ -86,7 +86,7 @@ BUILDTOOL_PATH := tools/macos
 UPLOAD_PATH := /dev/ttyUSB0
 POSTBUILDTOOL_PATH := amebad_tool/tools/macos
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
-LINKER_SCRIPT = amebad_vendor/linker_script
+LINKER_SCRIPT = 
 endif
 
 include amebad.mk

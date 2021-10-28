@@ -214,7 +214,7 @@ application: prerequirement $(OBJ)
 	$(Q)echo '==========================================================='
 	$(Q)echo 'Linking object code'
 	$(Q)echo '==========================================================='
-	$(LD) -L$(LINKER_SCRIPT) -L$(TC_PATH)../lib -T$(LINKER_SCRIPT)/rlx8721d_img2_is_arduino.ld $(LFLAGS) -Wl,-Map=$(BUILD)/Preprocessed_image2.map $(LIBFLAGS) -o $(BUILD)/$(TARGET).axf $(OBJ) $(LIBAR) -lm
+	$(LD) -L$(LINKER_SCRIPT) -L$(TC_PATH)../lib -T$(LINKER_SCRIPT)rlx8721d_img2_is_arduino.ld $(LFLAGS) -Wl,-Map=$(BUILD)/Preprocessed_image2.map $(LIBFLAGS) -o $(BUILD)/$(TARGET).axf $(OBJ) $(LIBAR) -lm
 	$(Q)$(OBJDUMP) -d $(BUILD)/$(TARGET).axf > $(BUILD)/Preprocessed_image2.asm
 
 
@@ -237,7 +237,7 @@ prerequirement: check_toolchain check_postbuildtools
 
 .PHONY: check_toolchain
 check_toolchain:
-	@if [ -d ../amebad_tool/toolchain/cygwin/asdk-6.5.0/bin/ ]; \
+	@if [ -d amebad_tool/toolchain/cygwin/asdk-6.5.0/bin/ ]; \
 		then echo "--ToolChain Exists--"; \
 		else echo "--Extracting toolchain..."; \
 			make -C amebad_tool/toolchain all; fi
@@ -292,6 +292,17 @@ release:
 	cp -f $(BUILD)/km0_km4_image2.bin $(TOP)/../Release/Windows
 	cp -f $(BUILD)/km0_km4_image2.bin $(TOP)/../Release/Linux
 	cp -f $(BUILD)/km0_km4_image2.bin $(TOP)/../Release/MacOS
+
+
+######################
+#     Submodule      #
+######################
+
+GIT_SUBMODULES += lib/ameba_sdk
+
+.PHONY: submodules
+submodules:
+	$(MAKE) -f ../../py/mkrules.mk GIT_SUBMODULES="$(GIT_SUBMODULES)" submodules
 
 
 ######################
