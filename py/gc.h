@@ -56,13 +56,13 @@ size_t gc_nbytes(const void *ptr);
 void *gc_realloc(void *ptr, size_t n_bytes, bool allow_move);
 
 typedef struct _gc_info_t {
-    size_t total;
-    size_t used;
-    size_t free;
-    size_t max_free;
-    size_t num_1block;
-    size_t num_2block;
-    size_t max_block;
+    size_t _total;
+    size_t _used;
+    size_t _free;
+    size_t _max_free;
+    size_t _num_1block;
+    size_t _num_2block;
+    size_t _max_block;
 } gc_info_t;
 
 void gc_info(gc_info_t *info);
