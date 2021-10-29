@@ -41,6 +41,7 @@ UPLOAD_PATH := COM8
 POSTBUILDTOOL_PATH := amebad_tool/tools/windows
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross.exe
 LINKER_SCRIPT = 
+POSTBUILD_TOOLCHAIN_PATH = cygwin
 else ifeq ($(findstring Linux, $(OS)), Linux)
 # Linux
 TC_PATH := 
@@ -64,6 +65,7 @@ UPLOAD_PATH := /dev/ttyUSB0
 POSTBUILDTOOL_PATH := amebad_tool/tools/linux
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
 LINKER_SCRIPT = 
+POSTBUILD_TOOLCHAIN_PATH = linux
 else
 # MacOS
 TC_PATH := 
@@ -87,6 +89,7 @@ UPLOAD_PATH := /dev/ttyUSB0
 POSTBUILDTOOL_PATH := amebad_tool/tools/macos
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
 LINKER_SCRIPT = 
+POSTBUILD_TOOLCHAIN_PATH = macos
 endif
 
 include amebad.mk

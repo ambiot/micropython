@@ -219,7 +219,7 @@ application: prerequirement $(OBJ)
 
 
 .PHONY: prerequirement
-prerequirement: check_toolchain check_postbuildtools
+prerequirement: check_toolchain check_postbuildtools submodules
 	$(Q)echo '==========================================================='
 	$(Q)echo 'Prepare tools and images'
 	$(Q)echo '==========================================================='
@@ -237,7 +237,7 @@ prerequirement: check_toolchain check_postbuildtools
 
 .PHONY: check_toolchain
 check_toolchain:
-	@if [ -d amebad_tool/toolchain/cygwin/asdk-6.5.0/bin/ ]; \
+	@if [ -d amebad_tool/toolchain/$(POSTBUILD_TOOLCHAIN_PATH)/asdk-6.5.0/bin/ ]; \
 		then echo "--ToolChain Exists--"; \
 		else echo "--Extracting toolchain..."; \
 			make -C amebad_tool/toolchain all; fi
@@ -255,7 +255,7 @@ manipulate_images: $(POSTBUILD)
 	$(Q)echo '==========================================================='
 	$(Q)echo 'Image manipulating'
 	$(Q)echo '==========================================================='
-	./$(BUILD)/$(POSTBUILD) $(BUILD) $(TARGET).axf ../amebad_tool/toolchain/cygwin/asdk-6.5.0/bin/ 0
+	./$(BUILD)/$(POSTBUILD) $(BUILD) $(TARGET).axf ../amebad_tool/toolchain/$(POSTBUILD_TOOLCHAIN_PATH)/asdk-6.5.0/bin/ 0
 	$(Q)echo '==========================='
 	$(Q)echo 'End of Image manipulating'
 	$(Q)echo '==========================='
