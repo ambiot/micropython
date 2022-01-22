@@ -36,7 +36,7 @@
 #include "spi_api.h"
 #include "spi_ex_api.h"
 
-#define SPI_DEFAULT_BAUD_RATE           (2000000)
+#define SPI_DEFAULT_BAUD_RATE           (200000)
 
 #define SPI_MASTER                      0
 #define SPI_SLAVE                       1
@@ -51,6 +51,8 @@ extern const mp_obj_type_t spi_type;
 extern const PinMap PinMap_SPI_MOSI[];
 extern const PinMap PinMap_SPI_MISO[];
 
+
+#if defined(RTL8722DM)
 // SPI0 (S1)
 #define SPI_0_MOSI  PB_18
 #define SPI_0_MISO  PB_19
@@ -63,6 +65,22 @@ extern const PinMap PinMap_SPI_MISO[];
 #define SPI_1_SCLK  PB_6
 #define SPI_1_CS    PB_7
 
+#elif defined(RTL8722DM_MINI)
+#define SPI_0_MOSI  PB_4
+#define SPI_0_MISO  PB_5
+#define SPI_0_SCLK  PB_6
+#define SPI_0_CS    PB_7
+
+#define SPI_1_MOSI  PA_12
+#define SPI_1_MISO  PA_13
+#define SPI_1_SCLK  PA_14
+#define SPI_1_CS    PA_15
+
+
+
+#else
+#error "Please specify the correct board name before re-try"
+#endif 
 
 typedef struct {
     mp_obj_base_t base;

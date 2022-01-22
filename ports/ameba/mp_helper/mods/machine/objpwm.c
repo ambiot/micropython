@@ -32,11 +32,16 @@
 #include "objpin.h"
 #include "objpwm.h"
 
-STATIC pwm_obj_t pwm_obj[4] = {
+STATIC pwm_obj_t pwm_obj[9] = {
     {.base.type = &pwm_type, .unit = 0},
     {.base.type = &pwm_type, .unit = 1},
     {.base.type = &pwm_type, .unit = 2},
-    {.base.type = &pwm_type, .unit = 3}
+    {.base.type = &pwm_type, .unit = 3},
+    {.base.type = &pwm_type, .unit = 4},
+    {.base.type = &pwm_type, .unit = 5},
+    {.base.type = &pwm_type, .unit = 6},
+    {.base.type = &pwm_type, .unit = 7},
+    {.base.type = &pwm_type, .unit = 8}
 };
 
 STATIC void pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
@@ -74,6 +79,14 @@ STATIC mp_obj_t pwm_write(size_t n_args, const mp_obj_t *args) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(pwm_write_obj, 1, 2, pwm_write);
 
 
+STATIC mp_obj_t pwm_deinit(mp_obj_t self_in) {
+    pwm_obj_t *self = self_in;
+    pwmout_free(&(self->obj));
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(pwm_deinit_obj, pwm_deinit);
+
+
 STATIC mp_obj_t pwm_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
     enum { ARG_unit, ARG_pin};
     const mp_arg_t pwm_init_args[] = {
@@ -106,6 +119,7 @@ STATIC const mp_map_elem_t pwm_locals_dict_table[] = {
     // instance methods
     { MP_OBJ_NEW_QSTR(MP_QSTR_freq),     MP_OBJ_FROM_PTR(&pwm_freq_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_write),    MP_OBJ_FROM_PTR(&pwm_write_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_deinit),    MP_OBJ_FROM_PTR(&pwm_deinit_obj) },
 };
 STATIC MP_DEFINE_CONST_DICT(pwm_locals_dict, pwm_locals_dict_table);
 

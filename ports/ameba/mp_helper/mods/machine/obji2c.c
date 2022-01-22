@@ -31,9 +31,8 @@ i2c_t i2cwire0;
 //i2c_t i2cwire1;
 
 
-STATIC i2c_obj_t i2c_obj[2] = {
+STATIC i2c_obj_t i2c_obj[1] = {
     {.base.type = &i2c_type, .unit = 0, .freq = I2C_DEFAULT_BAUD_RATE_HZ },
-    {.base.type = &i2c_type, .unit = 1, .freq = I2C_DEFAULT_BAUD_RATE_HZ },
 };
 
 int _i2c_read(mp_obj_base_t *self_in, uint8_t *dest, size_t len, bool nack) {

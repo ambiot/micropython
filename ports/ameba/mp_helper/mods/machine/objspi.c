@@ -30,22 +30,36 @@
 #define SPI_MAX 2       //max 2 sets of SPI supported on Ameba D
 static uint8_t id = 0; // default SPI idx id is 0 
 
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+
+
 spi_t mp_spi_obj[SPI_MAX];  // MBED obj 
 
+#if defined(RTL8722DM)
 STATIC spi_obj_t spi_obj[2] = {
     {.base.type = &spi_type, .unit = 0, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
     {.base.type = &spi_type, .unit = 1, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
 };
 
+#elif defined(RTL8722DM_MINI)
+STATIC spi_obj_t spi_obj[2] = {
+    {.base.type = &spi_type, .unit = 0, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
+    {.base.type = &spi_type, .unit = 1, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
+};
+#else
+#error "Please specify the correct board name before re-try"
+#endif 
 
 STATIC void spi_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     spi_obj_t *self = self_in;
     if (id == 0) {
-        mp_printf(print, "SPI(%d, baudrate=%u, bits=%d, MOSI=PB_18, MISO=PB_19, SCLK=PB_20, CS=PB_21 )", 
-            self->unit, self->baudrate, self->bits);
+        mp_printf(print, "SPI(%d, baudrate=%u, bits=%d, MOSI=%s, MISO=%s, SCLK=%s, CS=%s )", 
+            self->unit, self->baudrate, self->bits, TOSTRING(SPI_0_MOSI), TOSTRING(SPI_0_MISO), TOSTRING(SPI_0_SCLK), TOSTRING(SPI_0_CS));
     } else {
-        mp_printf(print, "SPI(%d, baudrate=%u, bits=%d, MOSI=PB_4, MISO=PB_5, SCLK=PB_6, CS=PB_7 )", 
-            self->unit, self->baudrate, self->bits);
+        mp_printf(print, "SPI(%d, baudrate=%u, bits=%d, MOSI=%s, MISO=%s, SCLK=%s, CS=%s )", 
+            self->unit, self->baudrate, self->bits, TOSTRING(SPI_1_MOSI), TOSTRING(SPI_1_MISO), TOSTRING(SPI_1_SCLK), TOSTRING(SPI_1_CS));
     }
 }
 
@@ -70,8 +84,15 @@ STATIC mp_obj_t spi_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uin
     mp_arg_val_t args[MP_ARRAY_SIZE(spi_init_args)];
     mp_arg_parse_all(n_args, all_args, &kw_args, MP_ARRAY_SIZE(args), spi_init_args, args);
 
-    if (args[ARG_unit].u_int > 1)
+    if (args[ARG_unit].u_int > 1 || args[ARG_unit].u_int < 0) {
         mp_raise_ValueError("Invalid SPI unit");
+    }
+
+    #if defined(RTL8722DM_MINI)
+    if (args[ARG_unit].u_int == 0){
+        mp_raise_ValueError("MINI board doesn't support SPI 0!");
+    }
+    #endif
 
     spi_obj_t *self  = &spi_obj[args[ARG_unit].u_int];
     id = args[ARG_unit].u_int;
@@ -80,10 +101,11 @@ STATIC mp_obj_t spi_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uin
     self->bits     = args[ARG_bits].u_int;
     
     if (args[ARG_unit].u_int == 0) {
-        mp_spi_obj[id].spi_idx = MBED_SPI0;  // only MBED_SPI0 can be used as slave
+        mp_spi_obj[id].spi_idx = MBED_SPI0;  // MBED_SPI0 can be used as master/slave, but MINI board does NOT support SPI0
         spi_init(&mp_spi_obj[id], SPI_0_MOSI, SPI_0_MISO, SPI_0_SCLK, SPI_0_CS);
+
     } else {
-        mp_spi_obj[id].spi_idx = MBED_SPI1;
+        mp_spi_obj[id].spi_idx = MBED_SPI1;  // MBED_SPI1 only work as master
         spi_init(&mp_spi_obj[id], SPI_1_MOSI, SPI_1_MISO, SPI_1_SCLK, SPI_1_CS);
     }
     
@@ -129,11 +151,11 @@ STATIC void spi_write(mp_obj_t *self_in, mp_obj_t value_in) {
     mp_int_t value = mp_obj_get_int(value_in);
 
     if (self->mode == SPI_MASTER) {
-        spi_master_write(&mp_spi_obj[id], value);
+        return mp_obj_new_int(spi_master_write(&mp_spi_obj[id], value));
     } else {
         spi_slave_write(&mp_spi_obj[id], value);
+        return mp_const_none;
     }
-    return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(spi_write_obj, spi_write);
 
@@ -143,6 +165,7 @@ STATIC const mp_map_elem_t spi_locals_dict_table[] = {
     //{ MP_ROM_QSTR(MP_QSTR_stop), MP_ROM_PTR(&spi_stop_obj) },
     { MP_ROM_QSTR(MP_QSTR_read), MP_ROM_PTR(&spi_read_obj) },
     { MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&spi_write_obj) },
+
     // class constants
     { MP_OBJ_NEW_QSTR(MP_QSTR_MASTER),    MP_OBJ_NEW_SMALL_INT(SPI_MASTER) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_SLAVE),     MP_OBJ_NEW_SMALL_INT(SPI_SLAVE) },

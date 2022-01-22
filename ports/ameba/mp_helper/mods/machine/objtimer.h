@@ -37,8 +37,8 @@
 
 extern const mp_obj_type_t timer_type;
 
-#define TIMER_PERIODICAL    (0)
-#define TIMER_ONESHOT       (1)
+#define TIMER_PERIODIC      (0)
+#define TIMER_ONE_SHOT       (1)
 
 typedef struct {
     mp_obj_base_t base;

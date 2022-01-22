@@ -80,12 +80,12 @@ STATIC mp_obj_t adc_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uin
     return self;
 }
 
-STATIC mp_obj_t adc_read(mp_obj_t self_in) {
+STATIC mp_obj_t adc_read_u16(mp_obj_t self_in) {
     adc_obj_t *self = self_in;
     uint16_t value = analogin_read_u16(&(self->obj));
-    return mp_obj_new_int(value);
+    return MP_OBJ_NEW_SMALL_INT(value);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(adc_read_obj, adc_read);
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(adc_read_u16_obj, adc_read_u16);
 
 #if 0
 STATIC mp_obj_t adc_int2flt(mp_obj_t self_in, mp_obj_t ad_in) {
@@ -103,7 +103,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(adc_int2flt_obj, adc_int2flt);
 
 STATIC const mp_map_elem_t adc_locals_dict_table[] = {
     // instance methods
-    { MP_OBJ_NEW_QSTR(MP_QSTR_read),       MP_OBJ_FROM_PTR(&adc_read_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_read_u16),       MP_OBJ_FROM_PTR(&adc_read_u16_obj) },
     //{ MP_OBJ_NEW_QSTR(MP_QSTR_int2flt),    MP_OBJ_FROM_PTR(&adc_int2flt_obj) },
 };
 STATIC MP_DEFINE_CONST_DICT(adc_locals_dict, adc_locals_dict_table);

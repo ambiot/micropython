@@ -150,13 +150,53 @@ STATIC mp_obj_t flash_read_id0(mp_obj_t self_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(flash_read_id_obj, flash_read_id0);
 
+STATIC mp_obj_t flash_update(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args){
+    enum { ARG_buf, ARG_addr};
+    STATIC const mp_arg_t flash_write_args[] = {
+        { MP_QSTR_buf,  MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+        { MP_QSTR_addr, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+    };
+
+    flash_obj_t *self = pos_args[0];
+
+    // parse args
+    mp_arg_val_t args[MP_ARRAY_SIZE(flash_write_args)];
+    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(args), 
+        flash_write_args, args);
+
+    // get the buffer to send from
+    mp_buffer_info_t bufinfo;
+    uint8_t data[1];
+    pyb_buf_get_for_send(args[ARG_buf].u_obj, &bufinfo, data);
+
+    mp_uint_t addr = mp_obj_get_int(args[ARG_addr].u_obj);
+        device_mutex_lock(RT_DEV_LOCK_FLASH);
+    flash_erase_sector(&(self->obj), addr);
+        device_mutex_unlock(RT_DEV_LOCK_FLASH);
+
+
+        device_mutex_lock(RT_DEV_LOCK_FLASH);
+    uint8_t ret = flash_stream_write(&(self->obj), addr, bufinfo.len, bufinfo.buf);
+        device_mutex_unlock(RT_DEV_LOCK_FLASH);
+
+    if (ret != 1) {
+        mp_raise_OSError("FLASH write error");
+    }
+  
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(flash_update_obj, 2, flash_update);
+
+
+
 STATIC const mp_map_elem_t flash_locals_table[] = {
-    { MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_flash) },
+    //{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_flash) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_read), MP_OBJ_FROM_PTR(&flash_read_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_write), MP_OBJ_FROM_PTR(&flash_write_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_erase_sector), MP_OBJ_FROM_PTR(&flash_erase_sector_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_erase_block), MP_OBJ_FROM_PTR(&flash_erase_block_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_read_id), MP_OBJ_FROM_PTR(&flash_read_id_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_update), MP_OBJ_FROM_PTR(&flash_update_obj) },
 };
 STATIC MP_DEFINE_CONST_DICT(flash_locals_dict, flash_locals_table);
 

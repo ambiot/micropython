@@ -138,7 +138,12 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(timer_init_obj, timer_init);
 
 STATIC mp_obj_t timer_deinit(mp_obj_t self_in) {
     timer_obj_t *self = self_in;
+
+    //stop the timer
+    gtimer_stop(&mp_timer_obj[mp_timer_id]);
+    // deinit the timer
     gtimer_deinit(&mp_timer_obj[mp_timer_id]);
+
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(timer_deinit_obj, timer_deinit);
@@ -165,37 +170,44 @@ STATIC mp_obj_t timer_reload(mp_obj_t self_in, mp_obj_t duration_us_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(timer_reload_obj, timer_reload);
 
+#if 0
 STATIC mp_obj_t timer_stop(mp_obj_t self_in) {
     timer_obj_t *self = self_in;
     gtimer_stop(&mp_timer_obj[mp_timer_id]);
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(timer_stop_obj, timer_stop);
-
+#endif
 
 void test_irq_handler() {
-    printf("--timer triggered. to stop: type t.stop()--\n");
+    printf("--timer triggered. use deinit() method to stop--\n");
 }
 
 
-STATIC mp_obj_t timer_start(mp_uint_t n_args, const mp_obj_t *args) {
-    //enum { ARG_self, ARG_duration, ARG_callback, ARG_type };
-    enum { ARG_self, ARG_duration, ARG_type };
+STATIC mp_obj_t timer_init(mp_uint_t n_args, const mp_obj_t *args) {
+    //enum { ARG_self, ARG_type, ARG_duration, ARG_callback};
+    enum {ARG_self, ARG_type, ARG_duration};
     timer_obj_t *self = args[ARG_self];
+
+    // duration in ms
     uint32_t duration = mp_obj_get_int(args[ARG_duration]);
+
+    //TODO: Passing callback function into init method
 #if 0
+    // for parsing callback function
     if (!MP_OBJ_IS_FUN(args[ARG_callback]) && (args[ARG_callback] != mp_const_none))
         mp_raise_ValueError("Error function type");
 #endif
+
     int32_t type = mp_obj_get_int(args[ARG_type]);
 
-    if (type == TIMER_PERIODICAL) {
+    if (type == TIMER_PERIODIC) {
         //printf("IF periodical timer started\n"); 
-        gtimer_start_periodical(&mp_timer_obj[mp_timer_id], duration, test_irq_handler, NULL); 
+        gtimer_start_periodical(&mp_timer_obj[mp_timer_id], (duration * 1000), test_irq_handler, NULL); 
         //printf("periodical timer ended\n");    
-    } else if (type == TIMER_ONESHOT) {
+    } else if (type == TIMER_ONE_SHOT) {
         //printf("ELSE IF periodical timer started\n"); 
-        gtimer_start_one_shout(&mp_timer_obj[mp_timer_id], duration, test_irq_handler, NULL); 
+        gtimer_start_one_shout(&mp_timer_obj[mp_timer_id], (duration * 1000), test_irq_handler, NULL); 
         //printf("one shot timer ended\n");
     } else { mp_raise_ValueError("Invalid TIMER type"); }
 #if 0
@@ -210,20 +222,19 @@ STATIC mp_obj_t timer_start(mp_uint_t n_args, const mp_obj_t *args) {
 #endif
     return mp_const_none;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(timer_start_obj, 3, 3,  timer_start);
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(timer_init_obj, 3, 3,  timer_init);
 
 STATIC const mp_map_elem_t timer_locals_dict_table[] = {
     // instance methods
-    //{ MP_OBJ_NEW_QSTR(MP_QSTR_init),    MP_OBJ_FROM_PTR(&timer_init_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_init),    MP_OBJ_FROM_PTR(&timer_init_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_deinit),  MP_OBJ_FROM_PTR(&timer_deinit_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_tick),    MP_OBJ_FROM_PTR(&timer_read_tick_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_us),      MP_OBJ_FROM_PTR(&timer_read_us_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_reload),  MP_OBJ_FROM_PTR(&timer_reload_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_stop),    MP_OBJ_FROM_PTR(&timer_stop_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_start),   MP_OBJ_FROM_PTR(&timer_start_obj) },
+    //{ MP_OBJ_NEW_QSTR(MP_QSTR_stop),    MP_OBJ_FROM_PTR(&timer_stop_obj) },
 
-    { MP_OBJ_NEW_QSTR(MP_QSTR_PERIODICAL),  MP_OBJ_NEW_SMALL_INT(TIMER_PERIODICAL) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_ONESHOT),     MP_OBJ_NEW_SMALL_INT(TIMER_ONESHOT) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_PERIODIC),  MP_OBJ_NEW_SMALL_INT(TIMER_PERIODIC) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_ONE_SHOT),  MP_OBJ_NEW_SMALL_INT(TIMER_ONE_SHOT) },
 };
 STATIC MP_DEFINE_CONST_DICT(timer_locals_dict, timer_locals_dict_table);
 

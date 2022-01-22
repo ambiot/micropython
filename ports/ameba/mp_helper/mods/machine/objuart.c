@@ -57,7 +57,7 @@ STATIC uart_obj_t uart_obj[2] = {{
     .irq_handler = mp_const_none,
 }, {
     .base.type      = &uart_type,
-    .unit           = 3,
+    .unit           = 1,
     .params = {
         .baudrate  = UART_DEFAULT_BAUDRATE,
         .data_bits = UART_DEFAULT_DATA_BITS,

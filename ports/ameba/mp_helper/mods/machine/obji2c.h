@@ -49,17 +49,35 @@ extern const mp_obj_type_t i2c_type;
 void _i2c_deinit0();
 
 //these two struct only to validate pin, peripharel and function fields don't mean anything
+#if defined(RTL8722DM)
 static const PinMap PinMap_I2C_SDA[] = {
-    {PA_26, I2C_0,      1},
-    //{PB_6,  2,      2},
+    {PA_26, I2C_0,      1}, // 1 for pull up
     {NC,    NC,     0}
 };
 
 static const PinMap PinMap_I2C_SCL[] = {
     {PA_25, I2C_0,      1},
-    //{PB_5,  2,      2},
     {NC,    NC,     0}
 };
+
+#elif defined(RTL8722DM_MINI)
+static const PinMap PinMap_I2C_SDA[] = {
+    {PB_0, I2C_0,      1},
+    //{PB_6, I2C_0,      1},
+
+    {NC,    NC,     0}
+};
+
+static const PinMap PinMap_I2C_SCL[] = {
+    {PA_31, I2C_0,     1},
+    //{PB_5, I2C_0,      1},
+   
+    {NC,    NC,     0}
+};
+#else
+#error "Please specify the correct board name before re-try"
+#endif 
+
 
 typedef struct {
     mp_obj_base_t base;

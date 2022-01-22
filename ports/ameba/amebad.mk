@@ -115,7 +115,7 @@ UPY_C += mp_helper/mods/modutime.c
 UPY_C += mp_helper/mods/moduos.c
 #UPY_C += mp_helper/mods/modussl.c
 #UPY_C += mp_helper/mods/machine/objwdt.c
-#UPY_C += mp_helper/mods/machine/objflash.c
+UPY_C += mp_helper/mods/machine/objflash.c
 UPY_C += mp_helper/mods/machine/objrtc.c
 UPY_C += mp_helper/mods/machine/objadc.c
 ##UPY_C += mp_helper/mods/machine/objdac.c
@@ -173,6 +173,7 @@ CFLAGS = -O2
 CFLAGS += -march=armv8-m.main+dsp
 CFLAGS += -mthumb 
 CFLAGS += -D$(CHIP)
+CFLAGS += -D$(BOARD)
 CFLAGS += -DMICROPYTHON_RTL8721D
 CFLAGS += -DCONFIG_PLATFORM_8721D
 # source code macro

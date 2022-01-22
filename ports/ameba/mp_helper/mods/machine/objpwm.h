@@ -41,10 +41,14 @@ extern const mp_obj_type_t pwm_type;
   *           {pinName, km0_pin2chan, km4_pin2chan}
   */
 static const PinMap PinMap_PWM[] = {
+    {PA_13,  0, 0},
+    {PA_13,  1, 1},
     {PA_23,  2, 2},
     {PA_24,  3, 3},
     {PA_25,  4, 4},
     {PA_26,  5, 5},
+    {PA_28,  6, 6},
+    {PA_30,  7, 7},
     {PB_4,  2, 8},
     {PB_5,  3, 9},
     {PB_7,  5, 17},
