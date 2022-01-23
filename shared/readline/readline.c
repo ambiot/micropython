@@ -72,7 +72,11 @@ STATIC void mp_hal_move_cursor_back(uint pos) {
     } else {
         char vt100_command[6];
         // snprintf needs space for the terminating null character
+        #if defined(AMEBAD) 
+        int n = snprintf(&vt100_command[0], sizeof(vt100_command), "\x1b[%d", pos); // Ameba internal snprintf doesn't support %u
+        #else
         int n = snprintf(&vt100_command[0], sizeof(vt100_command), "\x1b[%u", pos);
+        #endif
         if (n > 0) {
             assert((unsigned)n < sizeof(vt100_command));
             vt100_command[n] = 'D'; // replace null char

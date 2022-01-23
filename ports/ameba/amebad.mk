@@ -215,7 +215,7 @@ application: prerequirement $(OBJ)
 	$(Q)echo '==========================================================='
 	$(Q)echo 'Linking object code'
 	$(Q)echo '==========================================================='
-	$(LD) -L$(LINKER_SCRIPT) -L$(TC_PATH)../lib -T$(LINKER_SCRIPT)rlx8721d_img2_is_arduino.ld $(LFLAGS) -Wl,-Map=$(BUILD)/Preprocessed_image2.map $(LIBFLAGS) -o $(BUILD)/$(TARGET).axf $(OBJ) $(LIBAR) -lm
+	$(LD) -L$(LINKER_SCRIPT) -L$(TC_PATH)../lib -T$(LINKER_SCRIPT)rlx8721d_img2_is_micropython.ld $(LFLAGS) -Wl,-Map=$(BUILD)/Preprocessed_image2.map $(LIBFLAGS) -o $(BUILD)/$(TARGET).axf $(OBJ) $(LIBAR) -lm
 	$(Q)$(OBJDUMP) -d $(BUILD)/$(TARGET).axf > $(BUILD)/Preprocessed_image2.asm
 
 

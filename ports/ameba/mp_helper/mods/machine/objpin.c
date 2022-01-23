@@ -92,7 +92,7 @@ STATIC uint8_t pin_get_value (const pin_obj_t* self) {
 STATIC mp_obj_t pin_obj_init_helper(pin_obj_t *self, mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_mode, ARG_pull, ARG_value };
     STATIC const mp_arg_t pin_init_args[] = {
-        { MP_QSTR_mode, MP_ARG_REQUIRED | MP_ARG_INT },
+        { MP_QSTR_mode, MP_ARG_INT },
         { MP_QSTR_pull, MP_ARG_OBJ, {.u_obj = mp_const_none} },
         { MP_QSTR_value, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     };
@@ -234,6 +234,22 @@ STATIC mp_obj_t pin_on(mp_obj_t self_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(pin_on_obj, pin_on);
 
+
+STATIC mp_obj_t pin_low(mp_obj_t self_in) {
+    pin_obj_t *self = self_in;
+    gpio_write(&(self->obj), 0);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(pin_low_obj, pin_low);
+
+STATIC mp_obj_t pin_high(mp_obj_t self_in) {
+    pin_obj_t *self = self_in;
+    gpio_write(&(self->obj), 1);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(pin_high_obj, pin_high);
+
+
 STATIC mp_obj_t pin_toggle(mp_obj_t self_in) {
     pin_obj_t *self = self_in;
     if(pin_get_value(self) == 1){
@@ -244,6 +260,61 @@ STATIC mp_obj_t pin_toggle(mp_obj_t self_in) {
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(pin_toggle_obj, pin_toggle);
+
+
+void gpio_demo_irq_handler(uint32_t id, gpio_irq_event event) {
+    //TODO: pass real user-defined handler
+    printf("This is a demo irq handler");
+}
+
+
+STATIC mp_obj_t machine_pin_irq(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    enum { ARG_handler, ARG_trigger, ARG_hard };
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_handler, MP_ARG_OBJ, {.u_rom_obj = MP_ROM_NONE} },
+        { MP_QSTR_trigger, MP_ARG_INT, {.u_int = IRQ_FALL | IRQ_RISE} },
+        { MP_QSTR_hard, MP_ARG_BOOL, {.u_bool = false} },
+    };
+
+    //deinit the GPIO first
+    pin_obj_t *self_in = MP_OBJ_TO_PTR(pos_args[0]);
+    gpio_deinit((gpio_t *)&(self_in->obj));
+
+    printf("This is a test for irq function\n");
+
+    pin_irq_obj_t *self = MP_OBJ_TO_PTR(pos_args[0]);
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+
+#if 0
+    // Allocate the IRQ object if it doesn't already exist.
+    if (irq == NULL) {
+        irq = m_new_obj(machine_pin_irq_obj_t);
+        irq->base.base.type = &mp_irq_type;
+        irq->base.methods = (mp_irq_methods_t *)&machine_pin_irq_methods;
+        irq->base.parent = MP_OBJ_FROM_PTR(self);
+        irq->base.handler = mp_const_none;
+        irq->base.ishard = false;
+        MP_STATE_PORT(machine_pin_irq_obj[self->id]) = irq;
+    }
+#endif
+    if (n_args > 1 || kw_args->used != 0) {
+        // Configure IRQ.
+
+        self->trigger = args[ARG_trigger].u_int;
+        self->id = self_in->id;
+
+        gpio_irq_init((gpio_irq_t *)&(self->obj), self->id, gpio_demo_irq_handler, 0);  // set handler
+        gpio_irq_set((gpio_irq_t *)&(self->obj), self->trigger, true);   // Set Trigger mode
+        gpio_irq_enable((gpio_irq_t *)&(self->obj));
+    }
+
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(pin_irq_obj, 1, machine_pin_irq);
+
 
 STATIC void pin_named_pins_obj_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     pin_named_pins_obj_t *self = self_in;
@@ -280,7 +351,10 @@ STATIC const mp_map_elem_t pin_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_value),      MP_OBJ_FROM_PTR(&pin_value_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_off),        MP_OBJ_FROM_PTR(&pin_off_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_on),         MP_OBJ_FROM_PTR(&pin_on_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_low),        MP_OBJ_FROM_PTR(&pin_low_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_high),       MP_OBJ_FROM_PTR(&pin_high_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_toggle),     MP_OBJ_FROM_PTR(&pin_toggle_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_irq),        MP_OBJ_FROM_PTR(&pin_irq_obj) },
 
     // class attributes
     { MP_OBJ_NEW_QSTR(MP_QSTR_board),      MP_OBJ_FROM_PTR(&pin_board_pins_obj_type) },
@@ -291,6 +365,8 @@ STATIC const mp_map_elem_t pin_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_PULL_NONE),  MP_OBJ_NEW_SMALL_INT(PullNone) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_PULL_UP),    MP_OBJ_NEW_SMALL_INT(PullUp) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_PULL_DOWN),  MP_OBJ_NEW_SMALL_INT(PullDown) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_IRQ_RISING), MP_OBJ_NEW_SMALL_INT(IRQ_RISE) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_IRQ_FALLING),MP_OBJ_NEW_SMALL_INT(IRQ_FALL) },
 };
 STATIC MP_DEFINE_CONST_DICT(pin_locals_dict, pin_locals_dict_table);
 

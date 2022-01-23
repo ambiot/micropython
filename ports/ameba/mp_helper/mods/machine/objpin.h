@@ -27,8 +27,10 @@
 #define OBJPIN_H_
 
 #include "py/obj.h"
-
+#include "py/runtime.h"
+#include "shared/runtime/mpirq.h"
 #include "gpio_api.h"
+#include "gpio_irq_api.h"  
 #include "PinNames.h"
 #include "pinmap.h"
 #include "extmod/virtpin.h"
@@ -93,6 +95,18 @@ typedef struct {
     uint8_t             value;
     const PinMap        *af;
 } pin_obj_t;
+
+
+typedef struct {
+    const mp_irq_obj_t  base;
+    const qstr          name;
+    gpio_irq_t          obj;
+    uint8_t             id;
+    uint8_t             trigger;         
+    uint8_t             flags;
+    const PinMap        *af;
+} pin_irq_obj_t;
+
 
 typedef struct {
     const char *name;
