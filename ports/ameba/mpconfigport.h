@@ -68,9 +68,14 @@
 #define MICROPY_PY_SYS                          (1)
 #define MICROPY_PY_SYS_MODULES                  (0)
 #define MICROPY_PY_SYS_STDFILES                 (1)
+// extmod machine modules
 #define MICROPY_PY_MACHINE                      (1)
 #define MICROPY_PY_MACHINE_SPI                  (0)
 #define MICROPY_PY_MACHINE_I2C                  (0)
+#define MICROPY_PY_MACHINE_PWM                  (1)
+#define MICROPY_PY_MACHINE_PWM_DUTY_U16_NS      (1)
+#define MICROPY_PY_MACHINE_PWM_INCLUDEFILE      "ports/ameba/mp_helper/mods/machine/objpwm.c"
+
 #define MICROPY_PY_UERRNO                       (1)
 #define MICROPY_PY_SYS_EXIT                     (1)
 #define MICROPY_PY_USELECT                      (1)

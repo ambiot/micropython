@@ -33,7 +33,7 @@
 #include "PinNames.h"
 #include "objpin.h"
 
-extern const mp_obj_type_t pwm_type;
+extern const mp_obj_type_t machine_pwm_type;
 
 
 /**
@@ -61,11 +61,14 @@ static const PinMap PinMap_PWM[] = {
     {NC,    NC,     0}
 };
 
-typedef struct {
+typedef struct _machine_pwm_obj_t{
     mp_obj_base_t base;
     pwmout_t  obj;
     uint8_t   unit;
+    uint32_t  freq;
+    float     duty;
+    uint32_t  pulseWidth;
     pin_obj_t *pin;
-} pwm_obj_t;
+} machine_pwm_obj_t;
 
 #endif  // OBJPWM_H_
