@@ -372,17 +372,40 @@ There is currently 1 set of I2C, it is
 Use help(I2C) to view more information about this class
 
 
-### SPI 
+### SPI
 Use the ```SPI``` (Serial Peripheral Interface) module through ```machine``` module
 
 
 ```Python
 from machine import SPI
-spi = SPI(0)		  # Only support 2 sets of SPI -- 0 and 1 
+spi = SPI(1)		  # Only support 2 sets of SPI -- 0 and 1 
 spi 				      # type instance name to check for details of the SPI set 
-spi.write(123)		# Write number 123 
+spi.write(bytes([123]))		# Write number 123 
 spi.read()
 ```
+
+
+#### Arduino Test Code
+```C
+#include <SPI.h>
+
+void setup (void) {
+   Serial.begin (115200);
+   pinMode(MISO, OUTPUT); // have to send on master in so it set as output
+   SPCR |= _BV(SPE); // turn on SPI in slave mode
+   SPI.attachInterrupt(); // turn on interrupt
+}
+ISR (SPI_STC_vect){ // SPI interrupt routine  
+   byte c = SPDR; // read byte from SPI Data Register, value range from 0 - 255
+   Serial.println(c); // print as it is 
+   Serial.println((char)c); // print the ascii char
+}
+
+void loop (void) {
+   // do nothing
+}
+```
+
 
 #### For Your Information
 The above example start with creating an object of class ```SPI```, and it has the following format
@@ -433,7 +456,7 @@ WLAN( mode[required])
 ```
 
 
-#### Connect to WiFi with WPA2 security type 
+#### Connect to WiFi with WPA2 security type
 WPA2 is the most common security type, if not sure what security type your WiFi router is configured as, use this one
 ```Python
 from wireless import WLAN
