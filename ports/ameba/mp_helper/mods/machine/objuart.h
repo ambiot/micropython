@@ -65,6 +65,7 @@ typedef struct {
     UartLane   rx;
     bool      irq_enabled;
     mp_obj_t  irq_handler;
+    uint8_t   flow;
 } uart_obj_t;
 
 #endif  // OBJUART_H_

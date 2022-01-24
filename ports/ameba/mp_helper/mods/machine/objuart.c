@@ -105,24 +105,25 @@ void mp_obj_uart_irq_handler(uart_obj_t *self, SerialIrq event) {
 
 STATIC void uart_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     uart_obj_t *self = self_in;
-    mp_printf(print, "UART(baudrate=%u, bits=%u, parity=%s, stop=%u, tx_timeout=%u, rx_timeout=%u)",
+    mp_printf(print, "UART(baudrate=%u, bits=%u, parity=%s, stop=%u, tx_timeout=%u, rx_timeout=%u, flowcontrol=%u)",
         self->params.baudrate, self->params.data_bits,
         _parity_name[self->params.parity], self->params.stop_bits,
-        self->tx.timeout_ms, self->rx.timeout_ms);
+        self->tx.timeout_ms, self->rx.timeout_ms, self->flow);
 }
 
 STATIC mp_obj_t uart_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
     // TODO: CTS/RTS pin and flow control needed!
-    enum {ARG_unit, ARG_baudrate, ARG_bits, ARG_stop, ARG_parity, ARG_timeout, ARG_tx, ARG_rx};
+    enum {ARG_unit, ARG_baudrate, ARG_bits, ARG_parity, ARG_stop, ARG_tx, ARG_rx, ARG_timeout, ARG_flow};
     const mp_arg_t uart_init_args[] = {
         { MP_QSTR_unit,                          MP_ARG_INT, {.u_int = 0} },
         { MP_QSTR_baudrate,     MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = UART_DEFAULT_BAUDRATE} },
         { MP_QSTR_bits,         MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = UART_DEFAULT_DATA_BITS} },
-        { MP_QSTR_stop,         MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = UART_DEFAULT_STOP_BITS} },
         { MP_QSTR_parity,       MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = UART_DEFAULT_PARITY} },
-        { MP_QSTR_timeout,      MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = UART_DEFAULT_RX_TIMEOUT} },
+        { MP_QSTR_stop,         MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = UART_DEFAULT_STOP_BITS} },
         { MP_QSTR_tx,           MP_ARG_REQUIRED | MP_ARG_OBJ },
         { MP_QSTR_rx,           MP_ARG_REQUIRED | MP_ARG_OBJ },
+        { MP_QSTR_timeout,      MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = UART_DEFAULT_RX_TIMEOUT} },
+        { MP_QSTR_flow,         MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = -1} },
     };
     // parse args
     mp_map_t kw_args;
@@ -152,18 +153,37 @@ STATIC mp_obj_t uart_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_ui
     self->tx.pin           = tx;
     self->rx.pin           = rx;
 
+    // Set hardware flow control if configured.
+    if (args[ARG_flow].u_int >= 0) {
+        self->flow = args[ARG_flow].u_int;
+    }
+
     serial_init(&mp_uart_obj, self->tx.pin->id, self->rx.pin->id);
+    serial_baud(&mp_uart_obj, self->params.baudrate);
+    serial_format(&mp_uart_obj, self->params.data_bits, self->params.parity, self->params.stop_bits);
+
+    if (self->flow >= 0) {
+        serial_set_flow_control(&mp_uart_obj, self->flow, ((PinName)PA_14), ((PinName)0));     // PA_14 = RTS,  PA_15 = CTS
+    }
 
     return (mp_obj_t)self;
 }
 
+#if 0
 STATIC mp_obj_t uart_init0(mp_obj_t self_in) {
     uart_obj_t *self = self_in;
     serial_baud(&mp_uart_obj, self->params.baudrate);
     serial_format(&mp_uart_obj, self->params.data_bits, self->params.parity, self->params.stop_bits);
+
+    if (self->flow >= 0) {
+        serial_set_flow_control(&mp_uart_obj, self->flow, ((PinName)PA_14), ((PinName)0));     // PA_14 = RTS,  PA_15 = CTS
+    }
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(uart_init_obj, uart_init0);
+#endif
+
+
 
 STATIC mp_obj_t uart_deinit0(mp_obj_t self_in) {
     uart_obj_t *self = self_in;
@@ -203,16 +223,37 @@ STATIC mp_obj_t uart_irq_handler0(mp_obj_t self_in, mp_obj_t func_in) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(uart_irq_handler_obj, uart_irq_handler0);
 
+
+STATIC mp_obj_t machine_uart_any(mp_obj_t self_in) {
+    uart_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    
+    return MP_OBJ_NEW_SMALL_INT(serial_readable(&mp_uart_obj)); // return 1 if there is data to read, 0 if no data
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(uart_any_obj, machine_uart_any);
+
+STATIC mp_obj_t machine_uart_sendbreak(mp_obj_t self_in) {
+    uart_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    serial_break_set(&mp_uart_obj);
+    mp_hal_delay_us(13000000 / self->params.baudrate + 1);
+    serial_break_clear(&mp_uart_obj);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(uart_sendbreak_obj, machine_uart_sendbreak);
+
+
+
 STATIC const mp_map_elem_t uart_locals_dict_table[] = {
     // instance methods
-    { MP_OBJ_NEW_QSTR(MP_QSTR_init),        MP_OBJ_FROM_PTR(&uart_init_obj) },
+    //{ MP_OBJ_NEW_QSTR(MP_QSTR_init),        MP_OBJ_FROM_PTR(&uart_init_obj) },
     //{ MP_OBJ_NEW_QSTR(MP_QSTR_deinit),      MP_OBJ_FROM_PTR(&uart_deinit_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_read),        MP_OBJ_FROM_PTR(&mp_stream_read_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_readline),    MP_OBJ_FROM_PTR((&mp_stream_unbuffered_readline_obj)) },
-    //{ MP_OBJ_NEW_QSTR(MP_QSTR_readinto),    MP_OBJ_FROM_PTR((&mp_stream_readinto_obj)) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_readinto),    MP_OBJ_FROM_PTR((&mp_stream_readinto_obj)) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_write),       MP_OBJ_FROM_PTR(&mp_stream_write_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_irq_enable),  MP_OBJ_FROM_PTR((&uart_irq_enable_obj)) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_irq_handler), MP_OBJ_FROM_PTR((&uart_irq_handler_obj)) },
+    //{ MP_OBJ_NEW_QSTR(MP_QSTR_irq_enable),  MP_OBJ_FROM_PTR((&uart_irq_enable_obj)) },
+    //{ MP_OBJ_NEW_QSTR(MP_QSTR_irq_handler), MP_OBJ_FROM_PTR((&uart_irq_handler_obj)) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_any),         MP_OBJ_FROM_PTR((&uart_any_obj)) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_sendbreak),   MP_OBJ_FROM_PTR((&uart_sendbreak_obj)) },
 
     // class constants
     { MP_OBJ_NEW_QSTR(MP_QSTR_ParityNone),    MP_OBJ_NEW_SMALL_INT(ParityNone) },
@@ -220,12 +261,11 @@ STATIC const mp_map_elem_t uart_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_ParityEven),    MP_OBJ_NEW_SMALL_INT(ParityEven) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_ParityForced1), MP_OBJ_NEW_SMALL_INT(ParityForced1) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_ParityForced0), MP_OBJ_NEW_SMALL_INT(ParityForced0) },
-#if 0 // Not support yet
-    { MP_OBJ_NEW_QSTR(MP_QSTR_FlowControlNone),   MP_OBJ_NEW_SMALL_INT(FlowControlNone) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_FlowControlRTS),    MP_OBJ_NEW_SMALL_INT(FlowControlRTS) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_FlowControlCTS),    MP_OBJ_NEW_SMALL_INT(FlowControlCTS) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_FlowControlRTSCTS), MP_OBJ_NEW_SMALL_INT(FlowControlRTSCTS) },
-#endif
+
+    { MP_OBJ_NEW_QSTR(MP_QSTR_RTS),    MP_OBJ_NEW_SMALL_INT(FlowControlRTS) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_CTS),    MP_OBJ_NEW_SMALL_INT(FlowControlCTS) },
+    //{ MP_OBJ_NEW_QSTR(MP_QSTR_RTSCTS), MP_OBJ_NEW_SMALL_INT(FlowControlRTSCTS) },
+    //{ MP_OBJ_NEW_QSTR(MP_QSTR_None),   MP_OBJ_NEW_SMALL_INT(FlowControlNone) },
 };
 STATIC MP_DEFINE_CONST_DICT(uart_locals_dict, uart_locals_dict_table);
 
