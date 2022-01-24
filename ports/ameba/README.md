@@ -319,8 +319,37 @@ Note: I2C only works in ```master``` mode.
 from machine import Pin, I2C
 i2c = I2C(scl = "PA_25", sda = "PA_26", freq=100000) # configure I2C with pins and freq. of 100KHz
 i2c.scan()
-i2c.writeto(8, 123) # send 1 byte to slave with address 8
+i2c.writeto(8,bytes([123])) # send 1 byte to slave with address 8 with integer '123'
+i2c.writeto(8,str("asf"))  # send a 3 bytes string to slave
 i2c.readfrom(8, 6) # receive 6 bytes from slave
+```
+
+
+#### Arduino Test Code
+```C
+#include <Wire.h>
+
+void setup() {
+  Wire.begin(8);                // join i2c bus with address #8
+  Wire.onReceive(receiveEvent); // register event
+  Serial.begin(9600);           // start serial for output
+}
+
+void loop() {
+  delay(100);
+}
+
+// function that executes whenever data is received from master
+// this function is registered as an event, see setup()
+void receiveEvent(int howMany) {
+  while (1 < Wire.available()) { // loop through all but the last
+    char c = Wire.read(); // receive byte as a character
+    Serial.print(c);         // print the character
+  }
+  int x = Wire.read();    // receive byte as an integer
+  Serial.println((char)x);         // print as char
+  Serial.println(x);               // print as int
+}
 ```
 
 #### For Your Information

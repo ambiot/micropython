@@ -32,7 +32,7 @@ i2c_t i2cwire0;
 
 
 STATIC i2c_obj_t i2c_obj[1] = {
-    {.base.type = &i2c_type, .unit = 0, .freq = I2C_DEFAULT_BAUD_RATE_HZ },
+    {.base.type = &machine_hw_i2c_type, .unit = 0, .freq = I2C_DEFAULT_BAUD_RATE_HZ },
 };
 
 int _i2c_read(mp_obj_base_t *self_in, uint8_t *dest, size_t len, bool nack) {
@@ -89,7 +89,7 @@ STATIC const mp_machine_i2c_p_t machine_hard_i2c_p = {
     //.writeto = _i2c_writeto,  // xxm
 };
 
-STATIC mp_obj_t i2c_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
+STATIC mp_obj_t machine_i2c_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
     enum {ARG_unit, ARG_sda, ARG_scl, ARG_freq};
     const mp_arg_t i2c_init_args[] = {
         { MP_QSTR_unit, MP_ARG_INT, {.u_int = 0} },
@@ -129,11 +129,12 @@ STATIC mp_obj_t i2c_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uin
     return (mp_obj_t)self;
 }
 
-STATIC void i2c_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+STATIC void machine_i2c_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     i2c_obj_t *self = self_in;
     mp_printf(print, "I2C(%d, freq=%u, SCL=%q, SDA=%q)", self->unit, self->freq, self->scl->name, self->sda->name);
 }
 
+#if 0
 STATIC mp_obj_t mp_i2c_reset(mp_obj_t self_in) {
     i2c_obj_t *self = self_in;
     i2c_reset(&i2cwire0);
@@ -305,15 +306,16 @@ STATIC int write_mem(mp_obj_t self_in, uint16_t addr, uint32_t memaddr, uint8_t 
     return ret;
 }
 
-STATIC const mp_arg_t machine_i2c_mem_allowed_args[] = {
-    { MP_QSTR_addr,    MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
-    { MP_QSTR_memaddr, MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
-    { MP_QSTR_arg,     MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-    { MP_QSTR_addrsize, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 8} },
-};
+
 
 STATIC mp_obj_t machine_i2c_readfrom_mem(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_addr, ARG_memaddr, ARG_n, ARG_addrsize };
+    STATIC const mp_arg_t machine_i2c_mem_allowed_args[] = {
+    { MP_QSTR_addr,    MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
+    { MP_QSTR_memaddr, MP_ARG_REQUIRED | MP_ARG_INT, {.u_int = 0} },
+    { MP_QSTR_arg,     MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
+    { MP_QSTR_addrsize, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 8} },};
+
     mp_arg_val_t args[MP_ARRAY_SIZE(machine_i2c_mem_allowed_args)];
     mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args,
         MP_ARRAY_SIZE(machine_i2c_mem_allowed_args), machine_i2c_mem_allowed_args, args);
@@ -374,7 +376,38 @@ STATIC mp_obj_t machine_i2c_writeto_mem(size_t n_args, const mp_obj_t *pos_args,
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_KW(machine_i2c_writeto_mem_obj, 1, machine_i2c_writeto_mem);
+#endif
 
+STATIC int machine_i2c_transfer_single(mp_obj_base_t *self_in, uint16_t addr, size_t len, uint8_t *buf, unsigned int flags) {
+    i2c_obj_t *self = (i2c_obj_t *)self_in;
+    int ret;
+    bool nostop = !(flags & MP_MACHINE_I2C_FLAG_STOP);
+    if (flags & MP_MACHINE_I2C_FLAG_READ) {
+        ret = i2c_read(&i2cwire0, addr, buf, len, nostop);
+    } else {
+        ret = i2c_write(&i2cwire0, addr, buf, len, nostop);
+    }
+    return (ret < 0) ? -MP_EIO : ret;
+}
+
+
+#if 1
+
+STATIC const mp_machine_i2c_p_t machine_i2c_p = {
+    .transfer = mp_machine_i2c_transfer_adaptor,
+    .transfer_single = machine_i2c_transfer_single,
+};
+
+const mp_obj_type_t machine_hw_i2c_type = {
+    { &mp_type_type },
+    .name = MP_QSTR_I2C,
+    .print = machine_i2c_print,
+    .make_new = machine_i2c_make_new,
+    .protocol = &machine_i2c_p,
+    .locals_dict = (mp_obj_dict_t *)&mp_machine_i2c_locals_dict,
+};
+
+#else
 STATIC const mp_map_elem_t i2c_locals_dict_table[] = {
     //{ MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&machine_i2c_init_obj) },
     { MP_ROM_QSTR(MP_QSTR_reset), MP_ROM_PTR(&i2c_reset_obj) },
@@ -406,3 +439,4 @@ const mp_obj_type_t i2c_type = {
     .protocol    = &machine_hard_i2c_p,
     .locals_dict = (mp_obj_dict_t *)&i2c_locals_dict,
 };
+#endif

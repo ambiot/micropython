@@ -29,6 +29,7 @@
 #include "i2c_api.h"
 #include "py/mpstate.h"
 #include "py/runtime.h"
+#include "py/mperrno.h"
 #include "py/mphal.h"
 
 #include "exception.h"
@@ -44,7 +45,7 @@
 #define I2C_DEFAULT_BAUD_RATE_HZ  (100000)
 #define I2C_MAX_BAUD_RATE_HZ      (400000)
 
-extern const mp_obj_type_t i2c_type;
+extern const mp_obj_type_t machine_hw_i2c_type;
 
 void _i2c_deinit0();
 
