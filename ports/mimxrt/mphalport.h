@@ -29,10 +29,14 @@
 
 #include <stdint.h>
 #include "ticks.h"
+#include "py/ringbuf.h"
 #include "pin.h"
 #include "fsl_clock.h"
 
+#define MICROPY_HAL_VERSION             "2.8.0"
+
 #define MP_HAL_PIN_FMT                  "%q"
+extern ringbuf_t stdin_ringbuf;
 
 #define mp_hal_pin_obj_t const machine_pin_obj_t *
 #define mp_hal_get_pin_obj(o)   pin_find(o)
@@ -73,7 +77,10 @@ static inline void mp_hal_delay_us(mp_uint_t us) {
 
 #define mp_hal_delay_us_fast(us) mp_hal_delay_us(us)
 
-static inline void mp_hal_ticks_cpu_init(void) {
+static inline void mp_hal_ticks_cpu_enable(void) {
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->LAR = 0xc5acce55;
+    DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
@@ -85,5 +92,15 @@ static inline mp_uint_t mp_hal_get_cpu_freq(void) {
     return CLOCK_GetCpuClkFreq();
 }
 
+enum {
+    MP_HAL_MAC_WLAN0 = 0,
+    MP_HAL_MAC_WLAN1,
+    MP_HAL_MAC_BDADDR,
+    MP_HAL_MAC_ETH0,
+};
+
+void mp_hal_generate_laa_mac(int idx, uint8_t buf[6]);
+void mp_hal_get_mac(int idx, uint8_t buf[6]);
+void mp_hal_get_mac_ascii(int idx, size_t chr_off, size_t chr_len, char *dest);
 
 #endif // MICROPY_INCLUDED_MIMXRT_MPHALPORT_H
