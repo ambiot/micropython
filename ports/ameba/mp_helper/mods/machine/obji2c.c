@@ -90,11 +90,11 @@ STATIC const mp_machine_i2c_p_t machine_hard_i2c_p = {
 };
 
 STATIC mp_obj_t machine_i2c_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
-    enum {ARG_unit, ARG_sda, ARG_scl, ARG_freq};
+    enum {ARG_unit, ARG_scl, ARG_sda, ARG_freq};
     const mp_arg_t i2c_init_args[] = {
         { MP_QSTR_unit, MP_ARG_INT, {.u_int = 0} },
-        { MP_QSTR_sda,  MP_ARG_REQUIRED | MP_ARG_OBJ },
         { MP_QSTR_scl,  MP_ARG_REQUIRED | MP_ARG_OBJ },
+        { MP_QSTR_sda,  MP_ARG_REQUIRED | MP_ARG_OBJ },
         { MP_QSTR_freq, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = I2C_DEFAULT_BAUD_RATE_HZ} },
     };
 

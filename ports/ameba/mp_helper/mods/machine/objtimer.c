@@ -108,7 +108,7 @@ STATIC void timer_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind
 STATIC mp_obj_t timer_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
     enum { ARG_unit };
     const mp_arg_t timer_init_args[] = {
-        { MP_QSTR_unit,    MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_unit,    MP_ARG_INT, {.u_int = 1} },
     };
 
     mp_map_t kw_args;
