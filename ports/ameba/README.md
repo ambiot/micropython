@@ -204,10 +204,10 @@ PWM(pin_name[required], unit_id[optional])
 ```
 Use help(PWM) to view more information about this class
 
-Note: For RTL8722DM, PWM is only supported on the following pins,
+Note: For AMB21(RTL8722DM), PWM is only supported on the following pins,
 PA_23, PA_24, PA_25, PA_26
 
-For MINI board,
+For AMB23(MINI) board,
 PB_4, PB_5, PB_7, PA_12, PA_13, PA_23, PA_24, PA_28, PA_30
 
 
@@ -324,13 +324,13 @@ PS: Leaving all parameters except tx and rx blank will set the uart to default v
 | timeout   |     10 ms
 | flowCtrl  |     -1
 
-Note: There are 2 sets of uart, they are
+For AMB21(RTL8722DM), there are 2 sets of uart, they are
 | unit |   TX   |   RX
 |:-----|:------:|:-------: 
 |  0   |  PA_21 |  PA_22
 |  3   |  PA_26 |  PA_25
 
-For MINI board, they are
+For AMB23(MINI) board,
 | unit |   TX   |   RX
 |:-----|:------:|:-------: 
 |  0   |  PA_21 |  PA_22
@@ -348,7 +348,8 @@ Note: I2C only works in ```master``` mode.
 
 ```Python
 from machine import Pin, I2C
-i2c = I2C(scl = "PA_25", sda = "PA_26", freq=100000) # configure I2C with pins and freq. of 100KHz
+i2c = I2C(scl = "PA_25", sda = "PA_26", freq=100000) # configure I2C with pins and freq of 100KHz for AMB21
+# i2c = I2C(scl = "PA_31", sda = "PB_0", freq=100000) # configuration for AMB23(MINI)
 i2c.scan()
 i2c.writeto(8,bytes([123])) # send 1 byte to slave with address 8 with integer '123'
 i2c.writeto(8,str("asf"))  # send a 3 bytes string to slave
@@ -395,12 +396,12 @@ PS: Leaving optional parameters blank will will assume taking default values whi
 | unit_id   |      0
 | frequency |   100000 Hz
 
-There is currently 1 set of I2C, it is
+For AMB21(RTL8722DM), there is currently 1 set of I2C, it is
 | unit |   sda  |   scl
 |:-----|:------:|:------: 
 |   0  |  PA_26 |  PA_25
 
-For MINI board,
+For AMB23(MINI) board,
 | unit |   sda  |   scl
 |:-----|:------:|:------: 
 |   0  |  PB_0 |  PA_31
@@ -414,8 +415,7 @@ Use the ```SPI``` (Serial Peripheral Interface) module through ```machine``` mod
 
 ```Python
 from machine import SPI
-spi = SPI(1)		  # Only support 2 sets of SPI -- 0 and 1 
-spi 				      # type instance name to check for details of the SPI set 
+spi = SPI(1)		  # Only support 2 sets of SPI -- 0 and 1, for connection please refer to the table below
 spi.write(bytes([123]))		# Write number 123 
 spi.read()
 ```
@@ -462,13 +462,13 @@ PS: Leaving optional parameters blank will assume taking default values which ar
 | sck       |     N.A.
 | mode      |    Master
 
-There is currently 2 set of SPI, they are,
+For AMB21(RTL8722DM), there is currently 2 set of SPI, they are,
 | unit |   mosi |   miso  |  SCK  |  CS
 |:-----|:------:|:-------:|:-----:|:-----: 
 |   0  |  PB_18 |  PB_19  | PB_20 | PB_21
 |   1  |  PB_4  |  PB_5   | PB_6  | PB_7
 
-For MINI board,
+For AMB23(MINI) board,
 | unit |   mosi |   miso  |  SCK  |  CS
 |:-----|:------:|:-------:|:-----:|:-----: 
 |   1  |  PA_12 |  PA_13  | PA_14 | PA_15
