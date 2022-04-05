@@ -139,6 +139,11 @@ int main (void) {
     app_mbedtls_rom_init();
 #endif
 
+//For all amebad boards, Analog pin needs to pull none. GPIO_PuPd_NOPULL/GPIO_PuPd_DOWN/GPIO_PuPd_UP
+    PAD_PullCtrl(_PB_1, GPIO_PuPd_NOPULL);
+    PAD_PullCtrl(_PB_2, GPIO_PuPd_NOPULL);
+    PAD_PullCtrl(_PB_3, GPIO_PuPd_NOPULL);
+
 /*
     struct task_struct stUpyTask;
     BaseType_t xReturn = rtw_create_task(&stUpyTask, MICROPY_TASK_NAME,

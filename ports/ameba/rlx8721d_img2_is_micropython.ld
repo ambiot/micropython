@@ -75,7 +75,7 @@ SECTIONS
 	{
 		__bss_start__ = .;
 		*(.bss*)
-	/*	*(COMMON)	*/
+		*(COMMON)	
 		__bss_end__ = .;
 	} > BD_RAM_NS
 
@@ -96,7 +96,7 @@ SECTIONS
 		*(.heap.stdlib*)
 		. = . + 4096;
 		__bfsram_end__ = .;
-	} > PSRAM_NS
+	} > BD_RAM_NS
 
 	.xip_image2.text : 
 	{
@@ -128,9 +128,6 @@ SECTIONS
 	{
 		__psram_image2_text_start__ = .;
 		*(.psram.text*)
-		*/py/*.o(.text*)
-		*/lib/*.o(.text*)
-		*/extmod/*.o(.text*)
 		__psram_image2_text_end__ = .;
 	} > PSRAM_NS
 
@@ -138,14 +135,8 @@ SECTIONS
 	{
 		. = ALIGN (32);
 		*(.psram.data*)
-		*/py/*.o(.data*)
-    	*/lib/*.o(.data*)
-    	*/extmod/*.o(.data*)
 		. = ALIGN (32);
 		*(.psram.rodata*)
-		*/py/*.o(.rodata*)
-    	*/lib/*.o(.rodata*)
-    	*/extmod/*.o(.rodata*)
 	} > PSRAM_NS
 
 	.psram_image2.bss :
@@ -153,10 +144,7 @@ SECTIONS
 		. = ALIGN (32);
 		__psram_bss_start__ = .;
 		*(.psram.bss*)
-		*/py/*.o(.bss*)
-    	*/lib/*.o(.bss*)
-    	*/extmod/*.o(.bss*)
-		*(COMMON)
+	/*  *(COMMON)  */
 		__psram_bss_end__ = .;
 	} > PSRAM_NS
 

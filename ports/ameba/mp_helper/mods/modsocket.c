@@ -270,7 +270,9 @@ int getHostByName(const char* aHostname)
 {
     ip_addr_t ip_addr;
     err_t err;
-    err = netconn_gethostbyname(aHostname, &ip_addr);
+
+    //err = netconn_gethostbyname_addrtype(aHostname, &ip_addr, NETCONN_DNS_IPV4); // ipv6 xxm
+    err = netconn_gethostbyname(aHostname, &ip_addr);  // ipv4
 
     if (err != ERR_OK) {
         return WL_FAILURE;

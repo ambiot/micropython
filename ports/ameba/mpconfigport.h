@@ -197,7 +197,9 @@ extern const struct _mp_obj_module_t mp_network_module;
 #define MICROPY_WLAN_AP_DEFAULT_SSID        "YourSSID"
 #define MICROPY_WLAN_AP_DEFAULT_PASS        "YourPSWD"
 
-#define MP_HEAP_SIZE                        (180 * 1024)
+// Heap size for Garbage Collector
+#define MP_HEAP_SIZE                        (16 * 1024)
+//#define MP_HEAP_SIZE                        (180 * 1024) // xxm
 //#define MP_HEAP_SIZE                        (1124 * 1024)
 
 #define MICROPY_TASK_NAME                   "MicroPython"
