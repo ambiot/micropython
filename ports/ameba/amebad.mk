@@ -112,7 +112,6 @@ UPY_C += mp_helper/mods/modsocket.c
 #UPY_C += mp_helper/mods/modnetwork.c
 UPY_C += mp_helper/mods/modutime.c
 #UPY_C += mp_helper/mods/modterm.c
-UPY_C += mp_helper/mods/moduos.c
 #UPY_C += mp_helper/mods/modussl.c
 #UPY_C += mp_helper/mods/machine/objwdt.c
 UPY_C += mp_helper/mods/machine/objflash.c
