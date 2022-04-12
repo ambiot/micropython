@@ -100,16 +100,16 @@
 #define MICROPY_PY_UOS_DUPTERM_BUILTIN_STREAM   (0)
 #define MICROPY_NLR_X64                         (0)
 
-#define MICROPY_READER_VFS                      (MICROPY_VFS)
 #define MICROPY_VFS                             (1)
-#define MICROPY_VFS_FAT                         (0)
-#define MICROPY_READER_FATFS                    (MICROPY_VFS)
+#define MICROPY_READER_VFS                      (MICROPY_VFS)
+#define MICROPY_READER_FATFS                    (MICROPY_VFS_FAT)
 #define MICROPY_FATFS_ENABLE_LFN                (1)
 #define MICROPY_FATFS_LFN_CODE_PAGE             (437) /* 1=SFN/ANSI 437=LFN/U.S.(OEM) */
 #define MICROPY_FATFS_VOLUMES                   (1)
 #define MICROPY_FATFS_RPATH                     (2)
 #define MICROPY_FATFS_MAX_SS                    (512)
 #define MICROPY_FATFS_USE_LABEL                 (1)
+#define MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE (0)
 
 /*
 // File System
