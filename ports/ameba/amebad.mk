@@ -84,7 +84,6 @@ INC += -I$(TOP)/shared/timeutils
 INC += -I$(TOP)/shared/readline
 INC += -I$(TOP)/shared/netutils
 INC += -I$(TOP)/shared/runtime
-#INC += -I$(TOP)/lib/oofatfs
 #INC += -I$(TOP)/lib/lwip/src/include/lwip
 
 INC += -Imp_helper
@@ -96,7 +95,7 @@ INC += -Imp_helper/mods/machine
 # Micropython Port Source file list
 # -------------------------------------------------------------------
 UPY_C += pins.c
-#UPY_C += mp_helper/diskio.c
+UPY_C += mp_helper/diskio.c
 # UPY_C += mp_helper/flashbdev.c
 UPY_C += mp_helper/exception.c
 UPY_C += mp_helper/help.c
@@ -188,7 +187,6 @@ CFLAGS += -Wno-write-strings -Wno-maybe-uninitialized -c -MMD -Wextra
 CFLAGS += -Wl,--start-group
 CFLAGS += $(INC)
 CFLAGS += -Wl,--end-group
-# CFLAGS += -DFFCONF_H=\"$(OOFATFS_DIR)/ffconf.h\"
 CFLAGS += $(CFLAGS_MOD)
 
 
@@ -238,6 +236,9 @@ prerequirement: check_toolchain check_postbuildtools submodules
 	$(Q)mkdir -p $(BUILD)/$(BUILDTOOL_PATH)
 	$(Q)cp -f $(POSTBUILDTOOL_PATH)/$(PICK) $(BUILD)/$(BUILDTOOL_PATH)/$(PICK)
 	$(Q)cp -f $(POSTBUILDTOOL_PATH)/$(PAD) $(BUILD)/$(BUILDTOOL_PATH)/$(PAD)
+
+	$(Q)echo "Delete diskio from the static micropython library."
+	ar dv $(TOP)/lib/ameba_sdk/MicroPython_RTL8722/ports/rtl8722/amebad_vendor/ARCHIVE_LIB/lib_micropython.a diskio.o 2> /dev/null
 
 
 .PHONY: check_toolchain

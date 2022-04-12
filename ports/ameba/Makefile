@@ -4,7 +4,7 @@ include ../../py/mkenv.mk
 # declare before py.mk
 FROZEN_MANIFEST ?= manifest.py
 
-MICROPY_VFS_FAT ?= 0  # need to strip fatfs libs out of lib_micropython.a first 
+MICROPY_VFS_FAT ?= 1
 MICROPY_VFS_LFS2 ?= 1
 
 include $(TOP)/py/py.mk

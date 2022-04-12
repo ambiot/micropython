@@ -104,7 +104,7 @@
 #define MICROPY_READER_VFS                      (MICROPY_VFS)
 #define MICROPY_READER_FATFS                    (MICROPY_VFS_FAT)
 #define MICROPY_FATFS_ENABLE_LFN                (1)
-#define MICROPY_FATFS_LFN_CODE_PAGE             (437) /* 1=SFN/ANSI 437=LFN/U.S.(OEM) */
+#define MICROPY_FATFS_LFN_CODE_PAGE             437 /* 1=SFN/ANSI 437=LFN/U.S.(OEM) */
 #define MICROPY_FATFS_VOLUMES                   (1)
 #define MICROPY_FATFS_RPATH                     (2)
 #define MICROPY_FATFS_MAX_SS                    (512)
