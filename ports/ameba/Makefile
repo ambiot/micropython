@@ -2,8 +2,7 @@ include ../../py/mkenv.mk
 
 
 # declare before py.mk
-FROZEN_DIR = mp_scripts
-FROZEN_MPY_DIR = mp_frozenmodules
+FROZEN_MANIFEST ?= manifest.py
 
 include $(TOP)/py/py.mk
 
