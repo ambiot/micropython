@@ -219,23 +219,24 @@ class Pin(object):
     def parse_adc(self, adc_str):
         if adc_str[:3] != "ADC":
             return
+        adc, channel = None, None
 
         if adc_str.find("_INP") != -1:
             # STM32H7xx, entries have the form: ADCxx_IN[PN]yy/...
-            # for now just pick the entry with the most ADC periphs
-            adc, channel = None, None
-            for ss in adc_str.split("/"):
-                if ss.find("_INP") != -1:
-                    a, c = ss.split("_")
-                    if adc is None or len(a) > len(adc):
-                        adc, channel = a, c
-            if adc is None:
-                return
-            channel = channel[3:]
+            sep = "_INP"
         else:
             # all other MCUs, entries have the form: ADCxx_INyy
-            adc, channel = adc_str.split("_")
-            channel = channel[2:]
+            sep = "_IN"
+
+        # Pick the entry with the most ADC peripherals
+        for ss in adc_str.split("/"):
+            if ss.find(sep) != -1:
+                a, c = ss.split("_")
+                if adc is None or len(a) > len(adc):
+                    adc, channel = a, c
+        if adc is None:
+            return
+        channel = channel[len(sep) - 1 :]
 
         for idx in range(3, len(adc)):
             adc_num = int(adc[idx])  # 1, 2, or 3
@@ -426,16 +427,19 @@ class Pins(object):
                 adc_pins[pin.adc_channel] = pin
         if adc_pins:
             table_size = max(adc_pins) + 1
-            self.adc_table_size[adc_num] = table_size
-            print("")
-            print("const pin_obj_t * const pin_adc{:d}[{:d}] = {{".format(adc_num, table_size))
-            for channel in range(table_size):
-                if channel in adc_pins:
-                    obj = "&pin_{:s}_obj".format(adc_pins[channel].cpu_pin_name())
-                else:
-                    obj = "NULL"
-                print("  [{:d}] = {},".format(channel, obj))
-            print("};")
+        else:
+            # If ADCx pins are hidden, print an empty table to prevent linker errors.
+            table_size = 0
+        self.adc_table_size[adc_num] = table_size
+        print("")
+        print("const pin_obj_t * const pin_adc{:d}[{:d}] = {{".format(adc_num, table_size))
+        for channel in range(table_size):
+            if channel in adc_pins:
+                obj = "&pin_{:s}_obj".format(adc_pins[channel].cpu_pin_name())
+            else:
+                obj = "NULL"
+            print("  [{:d}] = {},".format(channel, obj))
+        print("};")
 
     def print_header(self, hdr_filename, obj_decls):
         with open(hdr_filename, "wt") as hdr_file:
@@ -504,7 +508,7 @@ class Pins(object):
         with open(af_defs_filename, "wt") as af_defs_file:
 
             STATIC_AF_TOKENS = {}
-            for named_pin in self.board_pins:
+            for named_pin in self.cpu_pins:
                 for af in named_pin.pin().alt_fn:
                     func = "%s%d" % (af.func, af.fn_num) if af.fn_num else af.func
                     pin_type = (af.pin_type or "NULL").split("(")[0]

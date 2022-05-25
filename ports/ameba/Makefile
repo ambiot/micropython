@@ -2,8 +2,10 @@ include ../../py/mkenv.mk
 
 
 # declare before py.mk
-FROZEN_DIR = mp_scripts
-FROZEN_MPY_DIR = mp_frozenmodules
+FROZEN_MANIFEST ?= manifest.py
+
+MICROPY_VFS_FAT ?= 1
+MICROPY_VFS_LFS2 ?= 1
 
 include $(TOP)/py/py.mk
 
@@ -45,7 +47,7 @@ IMAGETOOL = amebad_image_tool.exe
 PICK = pick.exe
 PAD  = pad.exe
 BUILDTOOL_PATH := tools/windows
-UPLOAD_PATH := COM8
+UPLOAD_PATH ?= COM8
 POSTBUILDTOOL_PATH := amebad_tool/tools/windows
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross.exe
 LINKER_SCRIPT = 
@@ -69,7 +71,7 @@ IMAGETOOL = amebad_image_tool
 PICK = pick
 PAD  = pad
 BUILDTOOL_PATH := tools/linux
-UPLOAD_PATH := /dev/ttyUSB0
+UPLOAD_PATH ?= /dev/ttyUSB0
 POSTBUILDTOOL_PATH := amebad_tool/tools/linux
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
 LINKER_SCRIPT = 
@@ -93,7 +95,7 @@ IMAGETOOL = amebad_image_tool
 PICK = pick
 PAD  = pad
 BUILDTOOL_PATH := tools/macos
-UPLOAD_PATH := /dev/ttyUSB0
+UPLOAD_PATH ?= /dev/ttyUSB0
 POSTBUILDTOOL_PATH := amebad_tool/tools/macos
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
 LINKER_SCRIPT = 

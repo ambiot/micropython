@@ -84,10 +84,12 @@ bool lpuart_set_iomux(int8_t uart) {
 
     if (TX.muxRegister != 0) {
         IOMUXC_SetPinMux(TX.muxRegister, TX.muxMode, TX.inputRegister, TX.inputDaisy, TX.configRegister, 0U);
-        IOMUXC_SetPinConfig(TX.muxRegister, TX.muxMode, TX.inputRegister, TX.inputDaisy, TX.configRegister, 0x10B0u);
+        IOMUXC_SetPinConfig(TX.muxRegister, TX.muxMode, TX.inputRegister, TX.inputDaisy, TX.configRegister,
+            pin_generate_config(PIN_PULL_UP_100K, PIN_MODE_OUT, PIN_DRIVE_6, TX.configRegister));
 
         IOMUXC_SetPinMux(RX.muxRegister, RX.muxMode, RX.inputRegister, RX.inputDaisy, RX.configRegister, 0U);
-        IOMUXC_SetPinConfig(RX.muxRegister, RX.muxMode, RX.inputRegister, RX.inputDaisy, RX.configRegister, 0x10B0u);
+        IOMUXC_SetPinConfig(RX.muxRegister, RX.muxMode, RX.inputRegister, RX.inputDaisy, RX.configRegister,
+            pin_generate_config(PIN_PULL_UP_100K, PIN_MODE_IN, PIN_DRIVE_6, RX.configRegister));
         return true;
     } else {
         return false;
@@ -269,7 +271,7 @@ STATIC mp_obj_t machine_uart_make_new(const mp_obj_type_t *type, size_t n_args, 
 
     // Get UART bus.
     int uart_id = mp_obj_get_int(args[0]);
-    if (uart_id < 1 || uart_id > MICROPY_HW_UART_NUM) {
+    if (uart_id < 0 || uart_id > MICROPY_HW_UART_NUM || uart_index_table[uart_id] == 0) {
         mp_raise_msg_varg(&mp_type_ValueError, MP_ERROR_TEXT("UART(%d) doesn't exist"), uart_id);
     }
 
@@ -286,11 +288,15 @@ STATIC mp_obj_t machine_uart_make_new(const mp_obj_type_t *type, size_t n_args, 
     LPUART_GetDefaultConfig(&self->config);
 
     // Configure board-specific pin MUX based on the hardware device number.
-    lpuart_set_iomux(uart_hw_id);
+    bool uart_present = lpuart_set_iomux(uart_hw_id);
 
-    mp_map_t kw_args;
-    mp_map_init_fixed_table(&kw_args, n_kw, args + n_args);
-    return machine_uart_init_helper(self, n_args - 1, args + 1, &kw_args);
+    if (uart_present) {
+        mp_map_t kw_args;
+        mp_map_init_fixed_table(&kw_args, n_kw, args + n_args);
+        return machine_uart_init_helper(self, n_args - 1, args + 1, &kw_args);
+    } else {
+        return mp_const_none;
+    }
 }
 
 // uart.init(baud, [kwargs])

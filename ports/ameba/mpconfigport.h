@@ -82,7 +82,7 @@
 #define MICROPY_PY_SYS_EXIT                     (1)
 #define MICROPY_PY_USELECT                      (1)
 #define MICROPY_PY_UTIMEQ                       (1)
-#define MICROPY_PY_URANDOM                      (1)
+#define MICROPY_PY_URANDOM                      (0)
 #define MICROPY_PY_FRAMEBUF                     (1)
 #define MICROPY_PY_BUILTINS_FLOAT               (1)
 #define MICROPY_PY_UTIME_MP_HAL                 (1)
@@ -100,16 +100,21 @@
 #define MICROPY_PY_UOS_DUPTERM_BUILTIN_STREAM   (0)
 #define MICROPY_NLR_X64                         (0)
 
-#define MICROPY_READER_VFS                      (MICROPY_VFS)
 #define MICROPY_VFS                             (1)
-#define MICROPY_VFS_FAT                         (0)
-#define MICROPY_READER_FATFS                    (MICROPY_VFS)
+#define MICROPY_READER_VFS                      (MICROPY_VFS)
+#define MICROPY_READER_FATFS                    (MICROPY_VFS_FAT)
 #define MICROPY_FATFS_ENABLE_LFN                (1)
-#define MICROPY_FATFS_LFN_CODE_PAGE             (437) /* 1=SFN/ANSI 437=LFN/U.S.(OEM) */
+#define MICROPY_FATFS_LFN_CODE_PAGE             437 /* 1=SFN/ANSI 437=LFN/U.S.(OEM) */
 #define MICROPY_FATFS_VOLUMES                   (1)
 #define MICROPY_FATFS_RPATH                     (2)
 #define MICROPY_FATFS_MAX_SS                    (512)
 #define MICROPY_FATFS_USE_LABEL                 (1)
+#define MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE (0)
+#define MICROPY_PY_UOS                          (1)
+//#define MICROPY_PY_UOS_INCLUDEFILE              "ports/ameba/mp_helper/mods/moduos.c"
+#define MICROPY_PY_UOS_UNAME                    (1)
+#define MICROPY_PY_UOS_URANDOM                  (MICROPY_PY_URANDOM)
+    
 
 /*
 // File System
@@ -144,8 +149,6 @@
     { MP_OBJ_NEW_QSTR(MP_QSTR_open),  MP_OBJ_FROM_PTR(&mp_builtin_open_obj) },  \
 
 extern const struct _mp_obj_module_t mp_module_modules;
-extern const struct _mp_obj_module_t mp_module_umachine;
-extern const struct _mp_obj_module_t mp_module_uos;
 extern const struct _mp_obj_module_t mp_module_utime;
 extern const struct _mp_obj_module_t mp_module_uwireless;
 extern const struct _mp_obj_module_t mp_module_usocket;
@@ -158,8 +161,6 @@ extern const struct _mp_obj_module_t mp_network_module;
 
 #define MICROPY_PORT_BUILTIN_MODULES \
     { MP_OBJ_NEW_QSTR(MP_QSTR_modules),      MP_OBJ_FROM_PTR(&mp_module_modules) },    \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_umachine),     MP_OBJ_FROM_PTR(&mp_module_umachine) },   \
-    { MP_OBJ_NEW_QSTR(MP_QSTR_uos),          MP_OBJ_FROM_PTR(&mp_module_uos) },        \
     { MP_OBJ_NEW_QSTR(MP_QSTR_utime),        MP_OBJ_FROM_PTR(&mp_module_utime) },      \
     { MP_OBJ_NEW_QSTR(MP_QSTR_uwireless),    MP_OBJ_FROM_PTR(&mp_module_uwireless) },  \
     { MP_OBJ_NEW_QSTR(MP_QSTR_usocket),      MP_OBJ_FROM_PTR(&mp_module_usocket) },    \

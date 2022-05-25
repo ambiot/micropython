@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "py/obj.h"
+#include "py/objfun.h"
 #include "py/objstr.h"
 #include "py/runtime.h"
 #include "py/gc.h"
@@ -153,7 +154,7 @@ STATIC void pairheap_test(size_t nops, int *ops) {
         mp_pairheap_init_node(pairheap_lt, &node[i]);
     }
     mp_pairheap_t *heap = mp_pairheap_new(pairheap_lt);
-    printf("create:");
+    mp_printf(&mp_plat_print, "create:");
     for (size_t i = 0; i < nops; ++i) {
         if (ops[i] >= 0) {
             heap = mp_pairheap_push(pairheap_lt, heap, &node[ops[i]]);
@@ -167,13 +168,13 @@ STATIC void pairheap_test(size_t nops, int *ops) {
             ;
         }
     }
-    printf("\npop all:");
+    mp_printf(&mp_plat_print, "\npop all:");
     while (!mp_pairheap_is_empty(pairheap_lt, heap)) {
         mp_printf(&mp_plat_print, " %d", mp_pairheap_peek(pairheap_lt, heap) - &node[0]);
         ;
         heap = mp_pairheap_pop(pairheap_lt, heap);
     }
-    printf("\n");
+    mp_printf(&mp_plat_print, "\n");
 }
 
 // function to run extra tests for things that can't be checked by scripts
@@ -449,7 +450,10 @@ STATIC mp_obj_t extra_coverage(void) {
         mp_printf(&mp_plat_print, "# VM\n");
 
         // call mp_execute_bytecode with invalide bytecode (should raise NotImplementedError)
+        mp_module_context_t context;
         mp_obj_fun_bc_t fun_bc;
+        fun_bc.context = &context;
+        fun_bc.child_table = NULL;
         fun_bc.bytecode = (const byte *)"\x01"; // just needed for n_state
         mp_code_state_t *code_state = m_new_obj_var(mp_code_state_t, mp_obj_t, 1);
         code_state->fun_bc = &fun_bc;

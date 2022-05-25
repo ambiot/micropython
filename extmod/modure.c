@@ -187,7 +187,7 @@ STATIC mp_obj_t ure_exec(bool is_anchored, uint n_args, const mp_obj_t *args) {
     }
     Subject subj;
     size_t len;
-    subj.begin = mp_obj_str_get_data(args[1], &len);
+    subj.begin_line = subj.begin = mp_obj_str_get_data(args[1], &len);
     subj.end = subj.begin + len;
     int caps_num = (self->re.sub + 1) * 2;
     mp_obj_match_t *match = m_new_obj_var(mp_obj_match_t, char *, caps_num);
@@ -220,7 +220,7 @@ STATIC mp_obj_t re_split(size_t n_args, const mp_obj_t *args) {
     Subject subj;
     size_t len;
     const mp_obj_type_t *str_type = mp_obj_get_type(args[1]);
-    subj.begin = mp_obj_str_get_data(args[1], &len);
+    subj.begin_line = subj.begin = mp_obj_str_get_data(args[1], &len);
     subj.end = subj.begin + len;
     int caps_num = (self->re.sub + 1) * 2;
 
@@ -280,7 +280,7 @@ STATIC mp_obj_t re_sub_helper(size_t n_args, const mp_obj_t *args) {
     size_t where_len;
     const char *where_str = mp_obj_str_get_data(where, &where_len);
     Subject subj;
-    subj.begin = where_str;
+    subj.begin_line = subj.begin = where_str;
     subj.end = subj.begin + where_len;
     int caps_num = (self->re.sub + 1) * 2;
 
@@ -454,11 +454,16 @@ const mp_obj_module_t mp_module_ure = {
 // only if module is enabled by config setting.
 
 #define re1_5_fatal(x) assert(!x)
+
 #include "lib/re1.5/compilecode.c"
-#if MICROPY_PY_URE_DEBUG
-#include "lib/re1.5/dumpcode.c"
-#endif
 #include "lib/re1.5/recursiveloop.c"
 #include "lib/re1.5/charclass.c"
+
+#if MICROPY_PY_URE_DEBUG
+// Make sure the output print statements go to the same output as other Python output.
+#define printf(...) mp_printf(&mp_plat_print, __VA_ARGS__)
+#include "lib/re1.5/dumpcode.c"
+#undef printf
+#endif
 
 #endif // MICROPY_PY_URE

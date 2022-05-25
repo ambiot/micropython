@@ -138,18 +138,10 @@ typedef long mp_off_t;
     void *machine_pin_irq_list; /* Linked list of pin irq objects */ \
     struct _mp_bluetooth_zephyr_root_pointers_t *bluetooth_zephyr_root_pointers;
 
-extern const struct _mp_obj_module_t mp_module_machine;
 extern const struct _mp_obj_module_t mp_module_time;
-extern const struct _mp_obj_module_t mp_module_uos;
 extern const struct _mp_obj_module_t mp_module_usocket;
 extern const struct _mp_obj_module_t mp_module_zephyr;
 extern const struct _mp_obj_module_t mp_module_zsensor;
-
-#if MICROPY_PY_UOS
-#define MICROPY_PY_UOS_DEF { MP_ROM_QSTR(MP_QSTR_uos), MP_ROM_PTR(&mp_module_uos) },
-#else
-#define MICROPY_PY_UOS_DEF
-#endif
 
 #if MICROPY_PY_USOCKET
 #define MICROPY_PY_USOCKET_DEF { MP_ROM_QSTR(MP_QSTR_usocket), MP_ROM_PTR(&mp_module_usocket) },
@@ -176,8 +168,6 @@ extern const struct _mp_obj_module_t mp_module_zsensor;
 #endif
 
 #define MICROPY_PORT_BUILTIN_MODULES \
-    { MP_ROM_QSTR(MP_QSTR_machine), MP_ROM_PTR(&mp_module_machine) }, \
-    MICROPY_PY_UOS_DEF \
     MICROPY_PY_USOCKET_DEF \
     MICROPY_PY_UTIME_DEF \
     MICROPY_PY_ZEPHYR_DEF \

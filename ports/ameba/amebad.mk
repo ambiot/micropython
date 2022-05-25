@@ -84,7 +84,6 @@ INC += -I$(TOP)/shared/timeutils
 INC += -I$(TOP)/shared/readline
 INC += -I$(TOP)/shared/netutils
 INC += -I$(TOP)/shared/runtime
-#INC += -I$(TOP)/lib/oofatfs
 #INC += -I$(TOP)/lib/lwip/src/include/lwip
 
 INC += -Imp_helper
@@ -96,7 +95,8 @@ INC += -Imp_helper/mods/machine
 # Micropython Port Source file list
 # -------------------------------------------------------------------
 UPY_C += pins.c
-#UPY_C += mp_helper/diskio.c
+UPY_C += mp_helper/diskio.c
+# UPY_C += mp_helper/flashbdev.c
 UPY_C += mp_helper/exception.c
 UPY_C += mp_helper/help.c
 UPY_C += mp_helper/mphal.c
@@ -112,7 +112,6 @@ UPY_C += mp_helper/mods/modsocket.c
 #UPY_C += mp_helper/mods/modnetwork.c
 UPY_C += mp_helper/mods/modutime.c
 #UPY_C += mp_helper/mods/modterm.c
-UPY_C += mp_helper/mods/moduos.c
 #UPY_C += mp_helper/mods/modussl.c
 #UPY_C += mp_helper/mods/machine/objwdt.c
 UPY_C += mp_helper/mods/machine/objflash.c
@@ -134,12 +133,12 @@ UPY_C += shared/netutils/netutils.c
 
 # File System
 #UPY_C += lib/oofatfs/ff.c 
-UPY_C += $(VENDOR)/component/common/file_system/fatfs/fatfs_ext/src/ff_driver.c
-UPY_C += $(VENDOR)/component/common/file_system/fatfs/r0.10c/src/diskio.c
-UPY_C += $(VENDOR)/component/common/file_system/fatfs/r0.10c/src/ff.c
-UPY_C += $(VENDOR)/component/common/file_system/fatfs/disk_if/src/flash_fatfs.c
-UPY_C += $(VENDOR)/component/common/file_system/fatfs/disk_if/src/sdcard.c
-UPY_C += mp_helper/mods/machine/objsdfs.c
+# UPY_C += $(VENDOR)/component/common/file_system/fatfs/fatfs_ext/src/ff_driver.c
+# UPY_C += $(VENDOR)/component/common/file_system/fatfs/r0.10c/src/diskio.c
+# UPY_C += $(VENDOR)/component/common/file_system/fatfs/r0.10c/src/ff.c
+# UPY_C += $(VENDOR)/component/common/file_system/fatfs/disk_if/src/flash_fatfs.c
+# UPY_C += $(VENDOR)/component/common/file_system/fatfs/disk_if/src/sdcard.c
+UPY_C += mp_helper/mods/machine/objsdcard.c
 
 # main
 UPY_C += main.c
@@ -157,9 +156,11 @@ TARGET=application
 # -------------------------------------------------------------------
 
 UPY_O = $(addprefix $(BUILD)/, $(UPY_C:.c=.o))
+UPY_O += $(addprefix $(BUILD)/, $(SRC_MOD:.c=.o))
+UPY_O += $(addprefix $(BUILD)/, $(SRC_LIB:.c=.o))
 
 OBJ = $(UPY_O) $(PY_O)
-SRC_QSTR += $(UPY_C)
+SRC_QSTR += $(UPY_C) $(SRC_LIB) $(SRC_MOD)
 SRC_QSTR_AUTO_DEPS +=
 
 ################################
@@ -185,7 +186,7 @@ CFLAGS += -Wno-write-strings -Wno-maybe-uninitialized -c -MMD -Wextra
 CFLAGS += -Wl,--start-group
 CFLAGS += $(INC)
 CFLAGS += -Wl,--end-group
-CFLAGS += -DFFCONF_H=\"$(OOFATFS_DIR)/ffconf.h\"
+CFLAGS += $(CFLAGS_MOD)
 
 
 ###########################
@@ -234,6 +235,9 @@ prerequirement: check_toolchain check_postbuildtools submodules
 	$(Q)mkdir -p $(BUILD)/$(BUILDTOOL_PATH)
 	$(Q)cp -f $(POSTBUILDTOOL_PATH)/$(PICK) $(BUILD)/$(BUILDTOOL_PATH)/$(PICK)
 	$(Q)cp -f $(POSTBUILDTOOL_PATH)/$(PAD) $(BUILD)/$(BUILDTOOL_PATH)/$(PAD)
+
+	$(Q)echo "Delete diskio from the static micropython library."
+	ar dv $(TOP)/lib/ameba_sdk/MicroPython_RTL8722/ports/rtl8722/amebad_vendor/ARCHIVE_LIB/lib_micropython.a diskio.o 2> /dev/null
 
 
 .PHONY: check_toolchain

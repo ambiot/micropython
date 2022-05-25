@@ -130,14 +130,14 @@ const pyb_i2c_obj_t pyb_i2c_obj[] = {
     #endif
 };
 
-#if defined(STM32F7) || defined(STM32L4) || defined(STM32H7)
+#if defined(STM32F7) || defined(STM32G4) || defined(STM32L4) || defined(STM32H7)
 
 // The STM32F0, F3, F7, H7 and L4 use a TIMINGR register rather than ClockSpeed and
 // DutyCycle.
 
 #define PYB_I2C_TIMINGR (1)
 
-#if defined(STM32F746xx)
+#if defined(STM32F745xx) || defined(STM32F746xx)
 
 // The value 0x40912732 was obtained from the DISCOVERY_I2Cx_TIMING constant
 // defined in the STM32F7Cube file Drivers/BSP/STM32F746G-Discovery/stm32f7456g_discovery.h
@@ -162,6 +162,28 @@ const pyb_i2c_obj_t pyb_i2c_obj[] = {
 }
 #define MICROPY_HW_I2C_BAUDRATE_DEFAULT (PYB_I2C_SPEED_FULL)
 #define MICROPY_HW_I2C_BAUDRATE_MAX (PYB_I2C_SPEED_FAST)
+
+#elif defined(STM32G4)
+// timing input depends on PLL
+// for now: 170MHz sysclock, PCLK 10.625 MHz
+// using PCLOCK
+// generated using CubeMX
+#if defined(STM32G431xx) || defined(STM32G441xx)
+#define MICROPY_HW_I2C_BAUDRATE_TIMING { \
+        {PYB_I2C_SPEED_STANDARD, 0x30A0A7FB}, \
+        {PYB_I2C_SPEED_STANDARD, 0x30A0A7FB}, \
+        {PYB_I2C_SPEED_STANDARD, 0x30A0A7FB}, \
+}
+#else
+#define MICROPY_HW_I2C_BAUDRATE_TIMING { \
+        {PYB_I2C_SPEED_STANDARD, 0x30A0A7FB}, \
+        {PYB_I2C_SPEED_STANDARD, 0x30A0A7FB}, \
+        {PYB_I2C_SPEED_STANDARD, 0x30A0A7FB}, \
+        {PYB_I2C_SPEED_STANDARD, 0x30A0A7FB}, \
+}
+#endif
+#define MICROPY_HW_I2C_BAUDRATE_DEFAULT (PYB_I2C_SPEED_STANDARD)
+#define MICROPY_HW_I2C_BAUDRATE_MAX (PYB_I2C_SPEED_STANDARD)
 
 #elif defined(STM32H7)
 
