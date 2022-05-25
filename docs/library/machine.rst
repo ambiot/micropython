@@ -199,11 +199,12 @@ Classes
    machine.Pin.rst
    machine.Signal.rst
    machine.ADC.rst
+   machine.ADCBlock.rst
    machine.PWM.rst
    machine.UART.rst
    machine.SPI.rst
    machine.I2C.rst
-   machine.I2S.rst   
+   machine.I2S.rst
    machine.RTC.rst
    machine.Timer.rst
    machine.WDT.rst

@@ -12,9 +12,9 @@
  ******************************************************************************/
 
 /*! @brief Defines the PHY PD83825 vendor defined registers. */
-#define PHY_PHYSTS_REG   0x10U // Phy status register
-#define PHY_BISCR_REG    0x16U // RMII Config register.
-#define PHY_RCSR_REG     0x17U // RMII Config register.
+#define PHY_PHYSTS_REG   0x10U /* Phy status register */
+#define PHY_BISCR_REG    0x16U /* RMII Config register. */
+#define PHY_RCSR_REG     0x17U /* RMII Config register. */
 #define PHY_CONTROL2_REG 0x1FU /*!< The PHY control register 2. */
 
 /*! @brief Defines the PHY DP82825 ID number. */
@@ -26,9 +26,9 @@
 #define PHY_PHYSTS_100M_MASK          0x0002U /*!< The PHY 100M mask. */
 #define PHY_PHYSTS_LINK_MASK          0x0001U /*!< The PHY link up mask. */
 
-#define PYH_RMII_CLOCK_SELECT        0x80  // Select 50MHz clock
-#define PHY_BISCR_REMOTELOOP_MASK    0x1FU // !< The PHY remote loopback mask.
-#define PHY_BISCR_REMOTELOOP_MODE    0x08U // !< The PHY remote loopback mode.
+#define PYH_RMII_CLOCK_SELECT        0x80  /* Select 50MHz clock */
+#define PHY_BISCR_REMOTELOOP_MASK    0x1FU /* !< The PHY remote loopback mask. */
+#define PHY_BISCR_REMOTELOOP_MODE    0x08U /* !< The PHY remote loopback mode. */
 
 /*! @brief Defines the timeout macro. */
 #define PHY_READID_TIMEOUT_COUNT 1000U

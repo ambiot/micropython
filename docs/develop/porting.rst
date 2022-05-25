@@ -53,8 +53,6 @@ The basic MicroPython firmware is implemented in the main port file, e.g ``main.
        mp_stack_ctrl_init();
        gc_init(heap, heap + sizeof(heap));
        mp_init();
-       mp_obj_list_init(MP_OBJ_TO_PTR(mp_sys_path), 0);
-       mp_obj_list_init(MP_OBJ_TO_PTR(mp_sys_argv), 0);
 
        // Start a normal REPL; will exit when ctrl-D is entered on a blank line.
        pyexec_friendly_repl();
@@ -147,6 +145,9 @@ The following is an example of an ``mpconfigport.h`` file:
    #define MICROPY_HELPER_REPL                     (1)
    #define MICROPY_ERROR_REPORTING                 (MICROPY_ERROR_REPORTING_TERSE)
    #define MICROPY_FLOAT_IMPL                      (MICROPY_FLOAT_IMPL_FLOAT)
+
+   // Enable u-modules to be imported with their standard name, like sys.
+   #define MICROPY_MODULE_WEAK_LINKS               (1)
 
    // Fine control over Python builtins, classes, modules, etc.
    #define MICROPY_PY_ASYNC_AWAIT                  (0)
@@ -298,7 +299,7 @@ like this:
        mphalport.c \
        ...
 
-   SRC_QSTR += modport.c
+   SRC_QSTR += modmyport.c
 
 If all went correctly then, after rebuilding, you should be able to import the new module:
 

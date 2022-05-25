@@ -233,7 +233,7 @@ MP_NOINLINE STATIC bool init_flash_fs(uint reset_mode) {
 #if MICROPY_HW_SDCARD_MOUNT_AT_BOOT
 STATIC bool init_sdcard_fs(void) {
     bool first_part = true;
-    for (int part_num = 1; part_num <= 4; ++part_num) {
+    for (int part_num = 1; part_num <= 5; ++part_num) {
         // create vfs object
         fs_user_mount_t *vfs_fat = m_new_obj_maybe(fs_user_mount_t);
         mp_vfs_mount_t *vfs = m_new_obj_maybe(mp_vfs_mount_t);
@@ -241,7 +241,16 @@ STATIC bool init_sdcard_fs(void) {
             break;
         }
         vfs_fat->blockdev.flags = MP_BLOCKDEV_FLAG_FREE_OBJ;
-        sdcard_init_vfs(vfs_fat, part_num);
+        if (part_num == 5) {
+            if (!first_part) {
+                break;
+            }
+            // partitions 1-4 couldn't be mounted, so try FATFS auto-detect mode
+            // which will work if there is no partition table, just a filesystem
+            sdcard_init_vfs(vfs_fat, 0);
+        } else {
+            sdcard_init_vfs(vfs_fat, part_num);
+        }
 
         // try to mount the partition
         FRESULT res = f_mount(&vfs_fat->fatfs);
@@ -419,7 +428,7 @@ void stm32_main(uint32_t reset_mode) {
     #if MICROPY_PY_PYB_LEGACY && MICROPY_HW_ENABLE_HW_I2C
     i2c_init0();
     #endif
-    #if MICROPY_HW_ENABLE_SDCARD
+    #if MICROPY_HW_ENABLE_SDCARD || MICROPY_HW_ENABLE_MMCARD
     sdcard_init();
     #endif
     #if MICROPY_HW_ENABLE_STORAGE
@@ -494,9 +503,6 @@ soft_reset:
 
     // MicroPython init
     mp_init();
-    mp_obj_list_init(MP_OBJ_TO_PTR(mp_sys_path), 0);
-    mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR_)); // current dir (or base dir of the script)
-    mp_obj_list_init(MP_OBJ_TO_PTR(mp_sys_argv), 0);
 
     // Initialise low-level sub-systems.  Here we need to very basic things like
     // zeroing out memory and resetting any of the sub-systems.  Following this
@@ -563,6 +569,11 @@ soft_reset:
 
     // reset config variables; they should be set by boot.py
     MP_STATE_PORT(pyb_config_main) = MP_OBJ_NULL;
+
+    // Run optional frozen boot code.
+    #ifdef MICROPY_BOARD_FROZEN_BOOT_FILE
+    pyexec_frozen_module(MICROPY_BOARD_FROZEN_BOOT_FILE);
+    #endif
 
     // Run boot.py (or whatever else a board configures at this stage).
     if (MICROPY_BOARD_RUN_BOOT_PY(&state) == BOARDCTRL_GOTO_SOFT_RESET_EXIT) {
@@ -651,6 +662,9 @@ soft_reset_exit:
     uart_deinit_all();
     #if MICROPY_HW_ENABLE_CAN
     can_deinit_all();
+    #endif
+    #if MICROPY_HW_ENABLE_DAC
+    dac_deinit_all();
     #endif
     machine_deinit();
 

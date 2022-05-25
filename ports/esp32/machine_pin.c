@@ -47,7 +47,6 @@
 // Used to implement a range of pull capabilities
 #define GPIO_PULL_DOWN (1)
 #define GPIO_PULL_UP   (2)
-#define GPIO_PULL_HOLD (4)
 
 #if CONFIG_IDF_TARGET_ESP32
 #define GPIO_FIRST_NON_OUTPUT (34)
@@ -93,7 +92,11 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     #endif
     {{&machine_pin_type}, GPIO_NUM_18},
     {{&machine_pin_type}, GPIO_NUM_19},
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 0)
+    {{&machine_pin_type}, GPIO_NUM_20},
+    #else
     {{NULL}, -1},
+    #endif
     {{&machine_pin_type}, GPIO_NUM_21},
     {{&machine_pin_type}, GPIO_NUM_22},
     {{&machine_pin_type}, GPIO_NUM_23},
@@ -177,7 +180,11 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     {{NULL}, -1}, // 23 not a pin
     {{NULL}, -1}, // 24 not a pin
     {{NULL}, -1}, // 25 not a pin
-    {{NULL}, -1}, // 26 FLASH/PSRAM
+    #if CONFIG_SPIRAM
+    {{NULL}, -1}, // 26 PSRAM
+    #else
+    {{&machine_pin_type}, GPIO_NUM_26},
+    #endif
     {{NULL}, -1}, // 27 FLASH/PSRAM
     {{NULL}, -1}, // 28 FLASH/PSRAM
     {{NULL}, -1}, // 29 FLASH/PSRAM
@@ -198,6 +205,13 @@ STATIC const machine_pin_obj_t machine_pin_obj[] = {
     {{&machine_pin_type}, GPIO_NUM_44}, // U0RXD
     {{&machine_pin_type}, GPIO_NUM_45},
     {{&machine_pin_type}, GPIO_NUM_46},
+
+    #endif
+
+    #if CONFIG_IDF_TARGET_ESP32S3 && MICROPY_HW_ESP32S3_EXTENDED_IO
+
+    {{&machine_pin_type}, GPIO_NUM_47},
+    {{&machine_pin_type}, GPIO_NUM_48},
 
     #endif
 };
@@ -242,13 +256,15 @@ STATIC void machine_pin_print(const mp_print_t *print, mp_obj_t self_in, mp_prin
     mp_printf(print, "Pin(%u)", self->id);
 }
 
-// pin.init(mode, pull=None, *, value)
+// pin.init(mode=None, pull=-1, *, value, drive, hold)
 STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_mode, ARG_pull, ARG_value };
+    enum { ARG_mode, ARG_pull, ARG_value, ARG_drive, ARG_hold };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_mode, MP_ARG_OBJ, {.u_obj = mp_const_none}},
         { MP_QSTR_pull, MP_ARG_OBJ, {.u_obj = MP_OBJ_NEW_SMALL_INT(-1)}},
         { MP_QSTR_value, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
+        { MP_QSTR_drive, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
+        { MP_QSTR_hold, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}},
     };
 
     // parse args
@@ -278,6 +294,14 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
         gpio_set_level(self->id, mp_obj_is_true(args[ARG_value].u_obj));
     }
 
+    // set drive capability (do this before configuring mode)
+    if (args[ARG_drive].u_obj != MP_OBJ_NULL && GPIO_IS_VALID_OUTPUT_GPIO(self->id)) {
+        mp_int_t strength = mp_obj_get_int(args[ARG_drive].u_obj);
+        if (0 <= strength && strength < GPIO_DRIVE_CAP_MAX) {
+            gpio_set_drive_capability(self->id, strength);
+        }
+    }
+
     // configure mode
     if (args[ARG_mode].u_obj != mp_const_none) {
         mp_int_t pin_io_mode = mp_obj_get_int(args[ARG_mode].u_obj);
@@ -305,10 +329,15 @@ STATIC mp_obj_t machine_pin_obj_init_helper(const machine_pin_obj_t *self, size_
         } else {
             gpio_pullup_dis(self->id);
         }
-        if (mode & GPIO_PULL_HOLD) {
+    }
+
+    // configure pad hold
+    if (args[ARG_hold].u_obj != MP_OBJ_NULL && GPIO_IS_VALID_OUTPUT_GPIO(self->id)) {
+        // always disable pad hold to apply outstanding config changes
+        gpio_hold_dis(self->id);
+        // (re-)enable pad hold if requested
+        if (mp_obj_is_true(args[ARG_hold].u_obj)) {
             gpio_hold_en(self->id);
-        } else if (GPIO_IS_VALID_OUTPUT_GPIO(self->id)) {
-            gpio_hold_dis(self->id);
         }
     }
 
@@ -460,11 +489,14 @@ STATIC const mp_rom_map_elem_t machine_pin_locals_dict_table[] = {
     { MP_ROM_QSTR(MP_QSTR_OPEN_DRAIN), MP_ROM_INT(GPIO_MODE_INPUT_OUTPUT_OD) },
     { MP_ROM_QSTR(MP_QSTR_PULL_UP), MP_ROM_INT(GPIO_PULL_UP) },
     { MP_ROM_QSTR(MP_QSTR_PULL_DOWN), MP_ROM_INT(GPIO_PULL_DOWN) },
-    { MP_ROM_QSTR(MP_QSTR_PULL_HOLD), MP_ROM_INT(GPIO_PULL_HOLD) },
     { MP_ROM_QSTR(MP_QSTR_IRQ_RISING), MP_ROM_INT(GPIO_PIN_INTR_POSEDGE) },
     { MP_ROM_QSTR(MP_QSTR_IRQ_FALLING), MP_ROM_INT(GPIO_PIN_INTR_NEGEDGE) },
     { MP_ROM_QSTR(MP_QSTR_WAKE_LOW), MP_ROM_INT(GPIO_PIN_INTR_LOLEVEL) },
     { MP_ROM_QSTR(MP_QSTR_WAKE_HIGH), MP_ROM_INT(GPIO_PIN_INTR_HILEVEL) },
+    { MP_ROM_QSTR(MP_QSTR_DRIVE_0), MP_ROM_INT(GPIO_DRIVE_CAP_0) },
+    { MP_ROM_QSTR(MP_QSTR_DRIVE_1), MP_ROM_INT(GPIO_DRIVE_CAP_1) },
+    { MP_ROM_QSTR(MP_QSTR_DRIVE_2), MP_ROM_INT(GPIO_DRIVE_CAP_2) },
+    { MP_ROM_QSTR(MP_QSTR_DRIVE_3), MP_ROM_INT(GPIO_DRIVE_CAP_3) },
 };
 
 STATIC mp_uint_t pin_ioctl(mp_obj_t self_in, mp_uint_t request, uintptr_t arg, int *errcode) {
@@ -532,7 +564,11 @@ STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
     #endif
     {{&machine_pin_irq_type}, GPIO_NUM_18},
     {{&machine_pin_irq_type}, GPIO_NUM_19},
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 1, 0)
+    {{&machine_pin_irq_type}, GPIO_NUM_20},
+    #else
     {{NULL}, -1},
+    #endif
     {{&machine_pin_irq_type}, GPIO_NUM_21},
     {{&machine_pin_irq_type}, GPIO_NUM_22},
     {{&machine_pin_irq_type}, GPIO_NUM_23},
@@ -611,7 +647,11 @@ STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
     {{NULL}, -1}, // 23 not a pin
     {{NULL}, -1}, // 24 not a pin
     {{NULL}, -1}, // 25 not a pin
-    {{NULL}, -1}, // 26 FLASH/PSRAM
+    #if CONFIG_SPIRAM
+    {{NULL}, -1}, // 26 PSRAM
+    #else
+    {{&machine_pin_irq_type}, GPIO_NUM_26},
+    #endif
     {{NULL}, -1}, // 27 FLASH/PSRAM
     {{NULL}, -1}, // 28 FLASH/PSRAM
     {{NULL}, -1}, // 29 FLASH/PSRAM
@@ -631,6 +671,14 @@ STATIC const machine_pin_irq_obj_t machine_pin_irq_object[] = {
     {{&machine_pin_irq_type}, GPIO_NUM_43},
     {{&machine_pin_irq_type}, GPIO_NUM_44},
     {{&machine_pin_irq_type}, GPIO_NUM_45},
+    {{&machine_pin_irq_type}, GPIO_NUM_46},
+
+    #endif
+
+    #if CONFIG_IDF_TARGET_ESP32S3 && MICROPY_HW_ESP32S3_EXTENDED_IO
+
+    {{&machine_pin_irq_type}, GPIO_NUM_47},
+    {{&machine_pin_irq_type}, GPIO_NUM_48},
 
     #endif
 };

@@ -1,10 +1,14 @@
 {
     "deploy": [
-        "../deploy.md"
+        "../deploy_teensy.md"
     ],
     "docs": "",
-    "features": [],
-    "images": [],
+    "features": [
+        "Breadboard Friendly"
+    ],
+    "images": [
+        "teensy40_front.jpg"
+    ],
     "mcu": "mimxrt",
     "product": "Teensy 4.0",
     "thumbnail": "",

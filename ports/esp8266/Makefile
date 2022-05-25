@@ -27,8 +27,6 @@ AXTLS_DEFS_EXTRA = -Dabort=abort_ -DRT_MAX_PLAIN_LENGTH=1024 -DRT_EXTRA=4096
 BTREE_DEFS_EXTRA = -DDEFPSIZE=1024 -DMINCACHE=3
 
 FROZEN_MANIFEST ?= boards/manifest.py
-FROZEN_DIR ?=
-FROZEN_MPY_DIR ?=
 
 # include py core make definitions
 include $(TOP)/py/py.mk
@@ -92,7 +90,6 @@ SRC_C = \
 	uart.c \
 	esppwm.c \
 	espapa102.c \
-	modpyb.c \
 	modmachine.c \
 	machine_bitstream.c \
 	machine_pin.c \
@@ -104,7 +101,6 @@ SRC_C = \
 	modesp.c \
 	modnetwork.c \
 	modutime.c \
-	moduos.c \
 	ets_alt_task.c \
 	fatfs_port.c \
 	posix_helpers.c \
@@ -196,12 +192,9 @@ $(BUILD)/uart.o: $(CONFVARS_FILE)
 
 FROZEN_EXTRA_DEPS = $(CONFVARS_FILE)
 
-ifneq ($(FROZEN_MANIFEST)$(FROZEN_MPY_DIR),)
+ifneq ($(FROZEN_MANIFEST),)
 CFLAGS += -DMICROPY_MODULE_FROZEN_MPY
 CFLAGS += -DMICROPY_QSTR_EXTRA_POOL=mp_qstr_frozen_const_pool
-endif
-
-ifneq ($(FROZEN_MANIFEST)$(FROZEN_DIR),)
 CFLAGS += -DMICROPY_MODULE_FROZEN_STR
 endif
 

@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include "interrupt_char.h"
 #include "cmsis_os.h"
+#include "ameba_soc.h"
 
 TaskHandle_t mp_main_task_handle;
 
@@ -174,4 +175,9 @@ void mp_hal_wake_main_task_from_isr(void) {
     if (xHigherPriorityTaskWoken == pdTRUE) {
         portYIELD_FROM_ISR(pdTRUE);
     }
+}
+
+uint64_t mp_hal_time_ns(void) {
+    uint64_t ticks = SYSTIMER_TickGet(); // resolution is 31us
+    return ticks * 31000ULL;
 }

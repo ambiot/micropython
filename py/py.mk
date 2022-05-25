@@ -176,6 +176,7 @@ PY_EXTMOD_O_BASENAME = \
 	extmod/moduasyncio.o \
 	extmod/moductypes.o \
 	extmod/modujson.o \
+	extmod/moduos.o \
 	extmod/modure.o \
 	extmod/moduzlib.o \
 	extmod/moduheapq.o \
@@ -225,16 +226,6 @@ PY_O = $(PY_CORE_O) $(PY_EXTMOD_O)
 # object file for frozen code specified via a manifest
 ifneq ($(FROZEN_MANIFEST),)
 PY_O += $(BUILD)/$(BUILD)/frozen_content.o
-endif
-
-# object file for frozen files
-ifneq ($(FROZEN_DIR),)
-PY_O += $(BUILD)/$(BUILD)/frozen.o
-endif
-
-# object file for frozen bytecode (frozen .mpy files)
-ifneq ($(FROZEN_MPY_DIR),)
-PY_O += $(BUILD)/$(BUILD)/frozen_mpy.o
 endif
 
 # Sources that may contain qstrings

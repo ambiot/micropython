@@ -34,6 +34,9 @@
 
 #include "py/objint.h"
 
+// #include "flashbdev.h"
+#include "machine/objsdcard.h"
+
 extern const struct _mp_obj_module_t mp_module_umachine;
 extern const struct _mp_obj_module_t mp_module_uos;
 extern const struct _mp_obj_module_t mp_module_utime;
@@ -42,11 +45,15 @@ extern const struct _mp_obj_module_t mp_module_usocket;
 
 STATIC const mp_map_elem_t ameba_module_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR___name__), 	MP_OBJ_NEW_QSTR(MP_QSTR_modules) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_machine),     MP_OBJ_FROM_PTR(&mp_module_umachine) },   
-    { MP_OBJ_NEW_QSTR(MP_QSTR_os),          MP_OBJ_FROM_PTR(&mp_module_uos) },        
-    { MP_OBJ_NEW_QSTR(MP_QSTR_time),        MP_OBJ_FROM_PTR(&mp_module_utime) },   
+    // { MP_OBJ_NEW_QSTR(MP_QSTR_machine),     MP_OBJ_FROM_PTR(&mp_module_umachine) },   
+    // { MP_OBJ_NEW_QSTR(MP_QSTR_os),          MP_OBJ_FROM_PTR(&mp_module_uos) },        
+    // { MP_OBJ_NEW_QSTR(MP_QSTR_time),        MP_OBJ_FROM_PTR(&mp_module_utime) },   
     { MP_OBJ_NEW_QSTR(MP_QSTR_wireless),    MP_OBJ_FROM_PTR(&mp_module_uwireless) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_socket),      MP_OBJ_FROM_PTR(&mp_module_usocket) },
+    // { MP_OBJ_NEW_QSTR(MP_QSTR_socket),      MP_OBJ_FROM_PTR(&mp_module_usocket) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_SDCard),          MP_OBJ_FROM_PTR(&sdcard_type) },
+    #if MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE
+    { MP_OBJ_NEW_QSTR(MP_QSTR_Flash),    MP_OBJ_FROM_PTR(&ameba_flashbdev_type) },
+    #endif
 };
 
 STATIC MP_DEFINE_CONST_DICT(ameba_module_globals, ameba_module_globals_table);

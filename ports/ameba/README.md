@@ -60,13 +60,13 @@ Wait for make finish building the MicroPython Cross Compiler, then this should f
 
 ## 2. How to upload?
 
-First, check your ameba Serial/COM port, make sure Ameba D's port name is correctly updated in the ```UPLOAD_PATH``` variable in the "Makefile";
+First, check your ameba Serial/COM port, this is needed in the make command below;
 
 Second, press RESET button while holding down UART Download button to enter ```UART Download Mode```,
 Then, type following command,
 
 ```bash
-$ make upload
+$ make upload UPLOAD_PATH=<port>
 ```
 
 
