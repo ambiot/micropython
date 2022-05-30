@@ -11,7 +11,7 @@ include $(TOP)/py/py.mk
 
 OS := $(shell uname)
 CHIP := AMEBAD
-BOARD := RTL8722DM
+BOARD := RTL8722DM_MINI
 DEBUG := 1
 VENDOR := ../../lib/ameba_sdk/MicroPython_RTL8722/ports/rtl8722/amebad_vendor/sdk
 TOOL := amebad_tool/tools

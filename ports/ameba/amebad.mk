@@ -178,7 +178,7 @@ CFLAGS += -D$(BOARD)
 CFLAGS += -DMICROPYTHON_RTL8721D
 CFLAGS += -DCONFIG_PLATFORM_8721D
 # source code macro
-CFLAGS += -ffunction-sections -mcmse -mfloat-abi=hard -mfpu=fpv5-sp-d16 -g -gdwarf-3 
+CFLAGS += -ffunction-sections -mcmse -mfloat-abi=hard -mfpu=fpv5-sp-d16 -g -gdwarf-3 -Wno-unused-parameter
 CFLAGS += -nostartfiles -nodefaultlibs -nostdlib -O2 -D__FPU_PRESENT -gdwarf-3 -fstack-usage 
 CFLAGS += -fdata-sections -nostartfiles -nostdlib -Wall -Wpointer-arith -Wstrict-prototypes 
 #CFLAGS += -Wundef -Wno-write-strings -Wno-maybe-uninitialized -c -MMD -Wextra 
@@ -196,7 +196,7 @@ LFLAGS =
 LFLAGS += -O2 -march=armv8-m.main+dsp -mthumb -mcmse -mfloat-abi=hard -mfpu=fpv5-sp-d16 
 LFLAGS += -nostartfiles -specs nosys.specs -Wl,--gc-sections
 
-LIBFLAGS = -Wl,--no-enum-size-warning -Wl,--warn-common
+LIBFLAGS = -Wl,--no-enum-size-warning -Wl,--warn-common -Wl,--print-memory-usage
 
 
 ###############################
@@ -297,6 +297,16 @@ release:
 	cp -f $(BUILD)/km0_km4_image2.bin $(TOP)/../Release/Windows
 	cp -f $(BUILD)/km0_km4_image2.bin $(TOP)/../Release/Linux
 	cp -f $(BUILD)/km0_km4_image2.bin $(TOP)/../Release/MacOS
+
+
+.PHONY: checkmem
+checkmem:
+	$(Q)echo
+	$(Q)echo 'Summary of memory'
+	$(SIZE) -A -d build/application.axf
+	$(Q)echo 'Top 30 memory blocks'
+	$(NM) build/application.axf --print-size --size-sort --print-armap | tail -30
+
 
 
 ######################
