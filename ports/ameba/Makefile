@@ -13,7 +13,7 @@ OS := $(shell uname)
 CHIP := AMEBAD
 BOARD := RTL8722DM_MINI
 DEBUG := 1
-VENDOR := ../../lib/ameba_sdk/MicroPython_RTL8722/ports/rtl8722/amebad_vendor/sdk
+VENDOR := ../../lib/ameba_sdk/sdk
 TOOL := amebad_tool/tools
 
 
@@ -71,7 +71,7 @@ IMAGETOOL = amebad_image_tool
 PICK = pick
 PAD  = pad
 BUILDTOOL_PATH := tools/linux
-UPLOAD_PATH ?= /dev/ttyUSB0
+UPLOAD_PATH ?= /dev/ttyS8
 POSTBUILDTOOL_PATH := amebad_tool/tools/linux
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
 LINKER_SCRIPT = 

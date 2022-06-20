@@ -4,6 +4,10 @@
 // set to 1 to restore to orginal code
 #define xmdebug                                 (0)
 
+#ifndef MICROPY_CONFIG_ROM_LEVEL
+#define MICROPY_CONFIG_ROM_LEVEL                (MICROPY_CONFIG_ROM_LEVEL_BASIC_FEATURES)
+#endif
+
 #define MP_HAL_CLEAN_DCACHE
 
 // options to control how Micro Python is built
@@ -46,6 +50,7 @@
 #define MICROPY_PY_BUILTINS_SLICE               (1)
 #define MICROPY_PY_BUILTINS_PROPERTY            (1)
 #define MICROPY_PY_BUILTINS_TIMEOUTERROR        (1)
+#define MICROPY_PY_BUILTINS_INPUT               (0)
 #define MICROPY_PY___FILE__                     (1)
 #define MICROPY_ENABLE_SCHEDULER                (1)
 #define MICROPY_PY_GC                           (1)
@@ -56,7 +61,9 @@
 #define MICROPY_PY_WEBREPL_DELAY                (20)
 #define MICROPY_PY_MATH                         (1)
 #define MICROPY_PY_IO                           (1)
-#define MICROPY_PY_IO_FILEIO                    (0)
+#define MICROPY_PY_IO_IOBASE                    (1)
+#define MICROPY_PY_IO_FILEIO                    (1)
+#define MICROPY_PY_SYS_STDIO_BUFFER             (1)
 #define MICROPY_PY_UCTYPES                      (1)
 #define MICROPY_PY_UHEAPQ                       (1)
 #define MICROPY_PY_UJSON                        (0)
@@ -66,7 +73,7 @@
 //#define MICROPY_PY_USSL_FINALISER               (1)
 #define MICROPY_PY_STRUCT                       (1)
 #define MICROPY_PY_SYS                          (1)
-#define MICROPY_PY_SYS_MODULES                  (0)
+#define MICROPY_PY_SYS_MODULES                  (1)
 #define MICROPY_PY_SYS_STDFILES                 (1)
 // extmod machine modules
 #define MICROPY_PY_MACHINE                      (1)
@@ -94,7 +101,7 @@
 #define MICROPY_PY_TERM_NUM                     (3)
 #define MICROPY_PY_WEBREPL                      (0)
 #define GENERIC_ASM_API                         (0)
-#define MICROPY_NLR_SETJMP                      (0)
+#define MICROPY_NLR_SETJMP                      (1)
 #define MICROPY_PY_LWIP_SLIP                    (0)
 #define MICROPY_PY_OS_DUPTERM                   (0)
 #define MICROPY_PY_UOS_DUPTERM_BUILTIN_STREAM   (0)
@@ -231,6 +238,8 @@ extern const struct _mp_obj_module_t mp_network_module;
 // type definitions for the specific machine
 
 #define BYTES_PER_WORD (4)
+
+#define MP_SSIZE_MAX (0x7fffffff)
 
 #define MICROPY_MAKE_POINTER_CALLABLE(p) ((void*)((mp_uint_t)(p) | 1))
 

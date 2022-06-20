@@ -203,7 +203,7 @@ LIBFLAGS = -Wl,--no-enum-size-warning -Wl,--warn-common -Wl,--print-memory-usage
 #         ARCHIVE LIST        #
 ###############################
 LIBAR += -Wl,--start-group
-LIBAR += -L$(VENDOR)/../ARCHIVE_LIB/ -l_micropython -l_wlan -l_wps 
+LIBAR += -L$(VENDOR)/../lib/ -l_micropython -l_wlan -l_wps 
 LIBAR += -l_websocket -l_user -l_usbh -l_usbd -l_tftp -l_mdns -l_m4a_self 
 LIBAR += -l_httpd -l_httpc -l_eap -l_dct -l_coap -l_cmsis_dsp -l_arduino_bt -l_arduino_mbedtls240
 LIBAR += -Wl,--end-group
@@ -242,10 +242,10 @@ prerequirement: check_toolchain check_postbuildtools submodules
 
 .PHONY: check_toolchain
 check_toolchain:
-	@if [ -d amebad_tool/toolchain/$(POSTBUILD_TOOLCHAIN_PATH)/asdk-6.5.0/bin/ ]; \
+	@if command -v arm-none-eabi-gcc; \
 		then echo "--ToolChain Exists--"; \
-		else echo "--Extracting toolchain..."; \
-			make -C amebad_tool/toolchain all; fi
+		else echo "--Toolchain Not Installed/added to PATH--"; \
+			exit 1; fi
 
 .PHONY: check_postbuildtools
 check_postbuildtools:
@@ -260,7 +260,7 @@ manipulate_images: $(POSTBUILD)
 	$(Q)echo '==========================================================='
 	$(Q)echo 'Image manipulating'
 	$(Q)echo '==========================================================='
-	./$(BUILD)/$(POSTBUILD) $(BUILD) $(TARGET).axf ../amebad_tool/toolchain/$(POSTBUILD_TOOLCHAIN_PATH)/asdk-6.5.0/bin/ 0
+	./$(BUILD)/$(POSTBUILD) $(BUILD) $(TARGET).axf " " 0
 	$(Q)echo '==========================='
 	$(Q)echo 'End of Image manipulating'
 	$(Q)echo '==========================='
