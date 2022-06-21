@@ -107,7 +107,7 @@ soft_reset:
     modwireless_init();
 
     //readline_init0();
-    pyexec_frozen_module("_boot.py");
+    //pyexec_frozen_module("_boot.py");
 
 #if MICROPY_REPL_EVENT_DRIVEN
     pyexec_event_repl_init();
