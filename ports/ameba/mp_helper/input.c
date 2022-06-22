@@ -24,6 +24,12 @@
  * THE SOFTWARE.
  */
 
+#if MICROPY_PY_BUILTINS_INPUT
+//do nothting, as this is implemented in the kernal
+#warning "custom builtin input disabled!"
+#else
+//use owr own builtin-input
+
 #include "py/nlr.h"
 #include "py/obj.h"
 #include "readline.h"
@@ -42,3 +48,5 @@ STATIC mp_obj_t mp_builtin_input(uint n_args, const mp_obj_t *args) {
 }
 
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_builtin_input_obj, 0, 1, mp_builtin_input);
+
+#endif
