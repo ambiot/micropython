@@ -33,6 +33,7 @@
 #include "py/runtime.h"
 #include "py/mphal.h"
 #include "py/mpstate.h"
+#include "py/stream.h"
 #include "extmod/misc.h"
 #include "pyexec.h"
 #include "py/obj.h"
@@ -97,9 +98,9 @@ void uart_send_string_with_length(serial_t *uartobj, char *pstr, size_t len)
     }
 }
 
-///////////////////////////////
-//       HAL TX & RX         //
-///////////////////////////////
+/////////////////////////////////////
+//       HAL STDIO TX & RX         //
+/////////////////////////////////////
 int mp_hal_stdin_rx_chr(void) {
     int c = serial_getc(&uartobj);
     if (c == mp_interrupt_char) mp_sched_keyboard_interrupt();
@@ -150,6 +151,21 @@ void mp_hal_stdout_tx_strn_cooked(const char *str, size_t len) {
         mp_hal_stdout_tx_chr(*str++);
     }
 }
+
+#if 1
+uintptr_t mp_hal_stdio_poll(uintptr_t poll_flags) {
+#if 0
+    uintptr_t ret = 0;
+    if ((poll_flags & MP_STREAM_POLL_RD) && ringbuf_peek(&stdin_ringbuf) != -1) {
+        ret |= MP_STREAM_POLL_RD;
+    }
+    return ret;
+#endif
+    poll_flags = poll_flags;
+    return MP_STREAM_POLL_RD;
+}
+#endif
+
 
 
 ///////////////////////////////

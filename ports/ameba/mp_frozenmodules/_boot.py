@@ -15,7 +15,8 @@ sd = machine.SDCard()
 
 try:
     vfs = uos.VfsFat(sd)
-    uos.mount(vfs, "/sd")
+    #uos.mount(vfs, "/sd")
+    uos.mount(vfs, "/")
     print("[MP]: Success connecting to SD card")
     print()
 except:
@@ -23,7 +24,8 @@ except:
     uos.VfsFat.mkfs(sd)
     vfs = uos.VfsFat(sd)
     print("[MP]: Success creating VFS over SD card..")
-    uos.mount(vfs, "/sd")
+    #uos.mount(vfs, "/sd")
+    uos.mount(vfs, "/")
     sys.print_exception()
 
 #del uos, sd, vfs

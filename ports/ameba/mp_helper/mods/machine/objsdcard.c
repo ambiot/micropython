@@ -151,9 +151,14 @@ STATIC mp_obj_t sdcard_make_new(const mp_obj_type_t *type, size_t n_args, size_t
 
     int error = interpret_sd_status(SD_Init());
     if (error) {
-        mp_raise_ValueError(MP_ERROR_TEXT("SD Init failed"));
+        // if sd init failed, deinit and re-init one more time [this is to solve 'soft reset' cause SDCard to fail issue]
+        SD_DeInit();
+        error = interpret_sd_status(SD_Init());
+        if (error) {
+            printf("SD ERROR[%d]", error);
+            mp_raise_ValueError(MP_ERROR_TEXT("SD Init failed, check your SD card"));
+        }
     }
-
     mp_int_t start = args[ARG_start].u_int;
     mp_int_t len = args[ARG_len].u_int;
 

@@ -99,36 +99,46 @@ soft_reset:
     gc_init(mpHeap, mpHeap + sizeof(mpHeap));
 #endif
 
+    // Init MP runtime
     mp_init();
-    mp_obj_list_init(mp_sys_path, 0);
-    mp_obj_list_init(mp_sys_argv, 0);
+    mp_obj_list_append(mp_sys_path, MP_OBJ_NEW_QSTR(MP_QSTR__slash_lib));
 
+    // Initialise sub-systems.
+    readline_init0();
     modmachine_init();
-    modwireless_init();
 
-    //readline_init0();
-    //pyexec_frozen_module("_boot.py");
+    // Execute firmware _boot script
+    pyexec_frozen_module("_boot.py");
 
-#if MICROPY_REPL_EVENT_DRIVEN
-    pyexec_event_repl_init();
-#endif
+    // Execute user scripts.
+    int ret = pyexec_file_if_exists("boot.py");
+    if (ret & PYEXEC_FORCED_EXIT) {
+        goto soft_reset_exit;
+    }
+    if (pyexec_mode_kind == PYEXEC_MODE_FRIENDLY_REPL) {
+        ret = pyexec_file_if_exists("main.py");
+        if (ret & PYEXEC_FORCED_EXIT) {
+            goto soft_reset_exit;
+        }
+    }
 
     for ( ; ; ) {
         if (pyexec_mode_kind == PYEXEC_MODE_RAW_REPL) {
             if (pyexec_raw_repl() != 0)
-                mp_printf(&mp_plat_print, "soft reboot\n");
                 break;
         } else {
             if (pyexec_friendly_repl() != 0) 
-                mp_printf(&mp_plat_print, "soft reboot\n");
                 break;
         }
-    osThreadYield();
+        //osThreadYield();
     }
 
-    //modwireless_deinit();
+soft_reset_exit:
 
-goto soft_reset;
+    gc_sweep_all();
+    mp_hal_stdout_tx_str("MPY: soft reboot\r\n");
+    mp_deinit();
+    goto soft_reset;
 
 }
 
@@ -159,7 +169,14 @@ int main (void) {
     return 0;
 }
 
-#if 1
+
+void nlr_jump_fail(void *val) {
+    mp_printf(&mp_plat_print, "FATAL: uncaught exception %p\r\n", val);
+    while(1);
+}
+
+
+#if 0
 #if !MICROPY_VFS
 mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
     return NULL;
@@ -176,10 +193,7 @@ mp_obj_t mp_builtin_open(uint n_args, const mp_obj_t *args, mp_map_t *kwargs) {
 MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_open_obj, 1, mp_builtin_open);
 #endif
 
-void nlr_jump_fail(void *val) {
-    mp_printf(&mp_plat_print, "FATAL: uncaught exception %p\r\n", val);
-    while(1);
-}
+
 #endif
 
 #if 0
