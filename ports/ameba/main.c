@@ -39,25 +39,18 @@
 #include "section_config.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "osdep_service.h"
-#include "cmsis_os.h"
-
 #include "device.h"
 #include "serial_api.h"
 #include "main.h"
 #include "interrupt_char.h"
+#include "mphalport.h"
 
 
 
-//serial_t    uartobj;
-
-//void serial_repl_handler(uint32_t id, SerialIrq event);
 /*****************************************************************************
  *                              Internal functions
  * ***************************************************************************/
-/*
- * //app_mbedtls_rom_init 
- */
+
 static void* app_mbedtls_calloc_func(size_t nelements, size_t elementSize)
 {
     size_t size;
@@ -85,14 +78,15 @@ void app_mbedtls_rom_init(void)
  * ***************************************************************************/
 
 
-osThreadId main_tid = 0;
+//osThreadId main_tid = 0;
+TaskHandle_t mp_main_task_handle;
 
 uint8_t mpHeap[MP_HEAP_SIZE];
 
 void micropython_task(void const *arg) {
 
 soft_reset:
-    repl_init0();
+    uart_repl_init();
     mp_stack_ctrl_init();
 
 #if MICROPY_ENABLE_GC
@@ -149,20 +143,26 @@ int main (void) {
     app_mbedtls_rom_init();
 #endif
 
-//For all amebad boards, Analog pin needs to pull none. GPIO_PuPd_NOPULL/GPIO_PuPd_DOWN/GPIO_PuPd_UP
+    //For all amebad boards, Analog pin needs to pull none. GPIO_PuPd_NOPULL/GPIO_PuPd_DOWN/GPIO_PuPd_UP
     PAD_PullCtrl(_PB_1, GPIO_PuPd_NOPULL);
     PAD_PullCtrl(_PB_2, GPIO_PuPd_NOPULL);
     PAD_PullCtrl(_PB_3, GPIO_PuPd_NOPULL);
 
-/*
-    struct task_struct stUpyTask;
-    BaseType_t xReturn = rtw_create_task(&stUpyTask, MICROPY_TASK_NAME,
-            MICROPY_TASK_STACK_DEPTH, MICROPY_TASK_PRIORITY, micropython_task, NULL);
-*/
-    osThreadDef(micropython_task, MICROPY_TASK_PRIORITY, 1, MICROPY_TASK_STACK_DEPTH);
-    main_tid = osThreadCreate(osThread(micropython_task), NULL);
 
-    osKernelStart();
+//    osThreadDef(micropython_task, MICROPY_TASK_PRIORITY, 1, MICROPY_TASK_STACK_DEPTH);
+//    main_tid = osThreadCreate(osThread(micropython_task), NULL);
+
+    if(xTaskCreate(micropython_task, \
+                    ((const char*)"micropython_main_task"), \
+                    MICROPY_TASK_STACK_DEPTH, \
+                    NULL, \
+                    tskIDLE_PRIORITY + 1, \
+                    mp_main_task_handle) != pdPASS) {
+                        printf("\n\r%s xTaskCreate(init_thread) failed", __FUNCTION__);
+                    }
+
+    //osKernelStart();
+    vTaskStartScheduler();
 
     for(;;);
     
@@ -175,32 +175,3 @@ void nlr_jump_fail(void *val) {
     while(1);
 }
 
-
-#if 0
-#if !MICROPY_VFS
-mp_lexer_t *mp_lexer_new_from_file(const char *filename) {
-    return NULL;
-}
-
-mp_import_stat_t mp_import_stat(const char *path) {
-    (void)path;
-    return MP_IMPORT_STAT_NO_EXIST;
-}
-
-mp_obj_t mp_builtin_open(uint n_args, const mp_obj_t *args, mp_map_t *kwargs) {
-    return mp_const_none;
-}
-MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_open_obj, 1, mp_builtin_open);
-#endif
-
-
-#endif
-
-#if 0
-void serial_repl_handler(uint32_t id, SerialIrq event) {
-    int data = 0;
-    if (event == RxIrq) {
-        mp_sched_keyboard_interrupt();
-    }
-}
-#endif

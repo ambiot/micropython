@@ -37,6 +37,7 @@
 #include "extmod/misc.h"
 #include "pyexec.h"
 #include "py/obj.h"
+#include "py/gc.h"
 #include "py/ringbuf.h"
 #include "wait_api.h"
 #include "serial_api.h"
@@ -45,12 +46,14 @@
 #include "cmsis_os.h"
 #include "ameba_soc.h"
 
-TaskHandle_t mp_main_task_handle;
+extern TaskHandle_t mp_main_task_handle;
+
+#define USE_RINGBUF 1
 
 serial_t    uartobj;
 
 STATIC uint8_t uart_ringbuf_array[256];
-ringbuf_t   uartRingbuf = {uart_ringbuf_array, sizeof(uart_ringbuf_array)};;
+ringbuf_t   stdin_ringbuf = {uart_ringbuf_array, sizeof(uart_ringbuf_array), 0, 0};
 
 /* LOGUART pins: */
 #define UART_TX    PA_7
@@ -58,29 +61,35 @@ ringbuf_t   uartRingbuf = {uart_ringbuf_array, sizeof(uart_ringbuf_array)};;
 
 //volatile int repl_buf = 0;
 
-void serial_repl_handler(uint32_t id, SerialIrq event) {
+void uart_repl_handler(uint32_t id, SerialIrq event) {
     gc_lock();
-    //if (event == RxIrq) {
-        int repl_buf = serial_getc(&uartobj);
-        if (repl_buf == mp_interrupt_char) {
-            mp_sched_keyboard_interrupt();
-        } else {
-            ringbuf_put(&uartRingbuf, (uint8_t)repl_buf);
-        }
-    //}
+
+    ringbuf_t *handlerRingBuf = (ringbuf_t *)id;
+    
+    if (event == RxIrq) {
+//        while(serial_readable(&uartobj)) {
+            int repl_buf = serial_getc(&uartobj);
+            if (repl_buf == mp_interrupt_char) {
+                mp_sched_keyboard_interrupt();
+            } else {
+                ringbuf_put(handlerRingBuf, (uint8_t)repl_buf);
+            }
+//        }
+    }
     gc_unlock();
 }
 
-void repl_init0() {
+void uart_repl_init() {
+    //init repl on UART and enable uart rx interrupt for receiving incoming data and handle keyboard interrupt
     serial_init(&uartobj,UART_TX,UART_RX);
     serial_baud(&uartobj,115200);
     serial_format(&uartobj, 8, ParityNone, 1);
-    //serial_irq_handler(&uartobj, serial_repl_handler, (uint32_t)&uartobj);
-    //serial_irq_set(&uartobj, RxIrq, 1);
+    serial_irq_handler(&uartobj, uart_repl_handler, (uint32_t)&stdin_ringbuf);
+    serial_irq_set(&uartobj, RxIrq, 1);
 }
 
 
-void uart_send_string(serial_t *uartobj, char *pstr)
+void uart_send_string(serial_t *uartobj, const char *pstr)
 {
     unsigned int i=0;
 
@@ -91,7 +100,7 @@ void uart_send_string(serial_t *uartobj, char *pstr)
 }
 
 
-void uart_send_string_with_length(serial_t *uartobj, char *pstr, size_t len)
+void uart_send_string_with_length(serial_t *uartobj, const char *pstr, size_t len)
 {
        for (uint32_t i = 0; i < len; ++i) {
         serial_putc(uartobj, pstr[i]);
@@ -102,27 +111,31 @@ void uart_send_string_with_length(serial_t *uartobj, char *pstr, size_t len)
 //       HAL STDIO TX & RX         //
 /////////////////////////////////////
 int mp_hal_stdin_rx_chr(void) {
+    #if USE_RINGBUF
+    for (;;) {
+        int c = ringbuf_get(&stdin_ringbuf);
+        if (c != -1) {
+            return c;
+        }
+        MICROPY_EVENT_POLL_HOOK
+    }
+    #else
     int c = serial_getc(&uartobj);
-    if (c == mp_interrupt_char) mp_sched_keyboard_interrupt();
-    else return c;
+    if (c == mp_interrupt_char) {
+        mp_sched_keyboard_interrupt();
+    } else {
+        return c;
+    }
+    #endif
 }
 
 int mp_hal_stdin_rx_readable(void) {
+    #if USE_RINGBUF
+    return ringbuf_avail(&stdin_ringbuf);
+    #else
     return serial_readable(&uartobj);
+    #endif
 }
-
-
-#if 0
-int mp_hal_stdin_rx_chr(void) {
-    return serial_getc(&uartobj);
-#if 0
-    int c = ringbuf_get(&uartRingbuf);
-    if (c != -1) {
-        return c;
-    }
-#endif
-}
-#endif
 
 void mp_hal_stdout_tx_strn(const char *str, size_t len) {
     //printf("--mp_hal_stdout_tx_strn--\n");
@@ -152,20 +165,18 @@ void mp_hal_stdout_tx_strn_cooked(const char *str, size_t len) {
     }
 }
 
-#if 1
 uintptr_t mp_hal_stdio_poll(uintptr_t poll_flags) {
-#if 0
+#if USE_RINGBUF
     uintptr_t ret = 0;
     if ((poll_flags & MP_STREAM_POLL_RD) && ringbuf_peek(&stdin_ringbuf) != -1) {
         ret |= MP_STREAM_POLL_RD;
     }
     return ret;
-#endif
+#else
     poll_flags = poll_flags;
     return MP_STREAM_POLL_RD;
-}
 #endif
-
+}
 
 
 ///////////////////////////////

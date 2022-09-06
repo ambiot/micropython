@@ -1,6 +1,6 @@
 print()
 import machine, wireless ,time, modules, socket
-import uos
+import os
 import sys
 from wireless import WLAN
 from machine import Pin, UART, Timer, RTC, PWM, I2C, SPI, ADC, FLASH
@@ -14,18 +14,18 @@ print("[MP]: Connecting to Filesystem")
 sd = machine.SDCard()
 
 try:
-    vfs = uos.VfsFat(sd)
-    #uos.mount(vfs, "/sd")
-    uos.mount(vfs, "/")
+    vfs = os.VfsFat(sd)
+    #os.mount(vfs, "/sd")
+    os.mount(vfs, "/")
     print("[MP]: Success connecting to SD card")
     print()
 except:
     print("[MP]: Creating VFS over SD card..")
-    uos.VfsFat.mkfs(sd)
-    vfs = uos.VfsFat(sd)
+    os.VfsFat.mkfs(sd)
+    vfs = os.VfsFat(sd)
     print("[MP]: Success creating VFS over SD card..")
-    #uos.mount(vfs, "/sd")
-    uos.mount(vfs, "/")
+    #os.mount(vfs, "/sd")
+    os.mount(vfs, "/")
     sys.print_exception()
 
-#del uos, sd, vfs
+del sd, vfs

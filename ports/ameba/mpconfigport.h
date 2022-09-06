@@ -100,7 +100,6 @@
 #define MICROPY_KBD_EXCEPTION                   (1)
 #define MICROPY_PY_TERM_NUM                     (3)
 #define MICROPY_PY_WEBREPL                      (0)
-#define GENERIC_ASM_API                         (0)
 #define MICROPY_NLR_SETJMP                      (1)
 #define MICROPY_PY_LWIP_SLIP                    (0)
 #define MICROPY_PY_OS_DUPTERM                   (0)

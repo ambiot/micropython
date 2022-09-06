@@ -199,11 +199,11 @@ INC += -Imp_helper/mods/machine
 # Micropython Port Source file list
 # -------------------------------------------------------------------
 UPY_C += pins.c
+UPY_C += mphalport.c
 UPY_C += mp_helper/diskio.c
 # UPY_C += mp_helper/flashbdev.c
 UPY_C += mp_helper/exception.c
 UPY_C += mp_helper/help.c
-UPY_C += mp_helper/mphal.c
 UPY_C += mp_helper/input.c
 UPY_C += mp_helper/bufhelper.c
 #UPY_C += mp_helper/mpthreadport.c
@@ -392,7 +392,7 @@ cleanpwd:
 com:
 	@if [ $(findstring CYGWIN, $(OS)) = CYGWIN ]; \
 		then ttermpro /C=8 /BAUD=115200; \
-		else picocom -b115200 $(UPLOAD_PATH); fi
+		else mpremote; fi
 
 
 .PHONY: release
