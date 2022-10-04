@@ -34,7 +34,7 @@
 
 #include "py/objint.h"
 
-// #include "flashbdev.h"
+#include "machine/objflash.h"
 #include "machine/objsdcard.h"
 
 extern const struct _mp_obj_module_t mp_module_umachine;
@@ -52,7 +52,7 @@ STATIC const mp_map_elem_t ameba_module_globals_table[] = {
     // { MP_OBJ_NEW_QSTR(MP_QSTR_socket),      MP_OBJ_FROM_PTR(&mp_module_usocket) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_SDCard),          MP_OBJ_FROM_PTR(&sdcard_type) },
     #if MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE
-    { MP_OBJ_NEW_QSTR(MP_QSTR_Flash),    MP_OBJ_FROM_PTR(&ameba_flashbdev_type) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_Flash),    MP_OBJ_FROM_PTR(&flash_type) },
     #endif
 };
 

@@ -106,6 +106,8 @@
 #define MICROPY_PY_UOS_DUPTERM_BUILTIN_STREAM   (0)
 #define MICROPY_NLR_X64                         (0)
 
+// File System Settings
+#define MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE (1)
 #define MICROPY_VFS                             (1)
 #define MICROPY_READER_VFS                      (MICROPY_VFS)
 #define MICROPY_READER_FATFS                    (MICROPY_VFS_FAT)
@@ -113,9 +115,12 @@
 #define MICROPY_FATFS_LFN_CODE_PAGE             437 /* 1=SFN/ANSI 437=LFN/U.S.(OEM) */
 #define MICROPY_FATFS_VOLUMES                   (1)
 #define MICROPY_FATFS_RPATH                     (2)
-#define MICROPY_FATFS_MAX_SS                    (512)
+#if MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE
+#define MICROPY_FATFS_MAX_SS                    (4096)  // default for flash
+#else 
+#define MICROPY_FATFS_MAX_SS                    (512)   // default for SD card
+#endif
 #define MICROPY_FATFS_USE_LABEL                 (1)
-#define MICROPY_HW_ENABLE_INTERNAL_FLASH_STORAGE (0)
 #define MICROPY_PY_UOS                          (1)
 //#define MICROPY_PY_UOS_INCLUDEFILE              "ports/ameba/mp_helper/mods/moduos.c"
 #define MICROPY_PY_UOS_UNAME                    (1)
@@ -207,7 +212,7 @@ extern const struct _mp_obj_module_t mp_network_module;
 // Heap size for Garbage Collector
 //#define MP_HEAP_SIZE                        (40 * 1024)
 //#define MP_HEAP_SIZE                        (180 * 1024) // xxm
-#define MP_HEAP_SIZE                        (190 * 1024)
+#define MP_HEAP_SIZE                        (150 * 1024)
 
 #define MICROPY_TASK_NAME                   "MicroPython"
 #define MICROPY_TASK_STACK_DEPTH            (((20 * 1024) + 512) / sizeof(StackType_t))

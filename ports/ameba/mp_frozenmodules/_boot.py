@@ -10,6 +10,7 @@ print()
 
 
 print("[MP]: Connecting to Filesystem")
+"""
 # Try to mount the filesystem, and format the SD card if it doesn't exist.
 sd = machine.SDCard()
 
@@ -29,3 +30,22 @@ except:
     sys.print_exception()
 
 del sd, vfs
+"""
+
+# Mount on VFS on FLASH
+bdev = machine.FLASH()
+
+try: 
+    vfs = os.VfsFat(bdev)
+    os.mount(vfs, "/")
+    print("[MP]: Success mounting on Flash at '/'")
+except:
+    print("[MP]: Creating VFS over FLASH..")
+    os.VfsFat.mkfs(bdev)
+    vfs = os.VfsFat(bdev)
+    print("[MP]: Success creating VFS over FLASH!")
+    os.mount(vfs, "/")
+    
+del bdev, vfs
+
+

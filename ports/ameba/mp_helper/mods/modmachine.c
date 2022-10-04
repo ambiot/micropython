@@ -57,6 +57,8 @@
 /*****************************************************************************
  *                              External variables
  * ***************************************************************************/
+extern TaskHandle_t mp_main_task_handle;
+
 
 void modmachine_init(void) {
     rtc_init0();
@@ -68,6 +70,30 @@ STATIC mp_obj_t machine_reset(void) {
     return mp_const_none;
 }
 MP_DEFINE_CONST_FUN_OBJ_0(machine_reset_obj, machine_reset);
+
+
+STATIC mp_obj_t machine_info(void) {
+    // FreeRTOS info
+    printf("---------------------------------------------\n");
+    printf("FreeRTOS Memory Info\n");
+    printf("---------------------------------------------\n");
+    printf("Total heap: %d\n", configTOTAL_HEAP_SIZE);
+    
+    char ptrTaskList[250];
+    vTaskList(ptrTaskList);
+    printf("*******************************************\n");
+    printf("Task          State   Prio  Stack(avai) Num\n"); 
+    printf("*******************************************\n");
+    printf("%s", ptrTaskList);
+    printf("*******************************************\n");
+    printf("The avail heap from FreeRTOS: %d bytes\n", xPortGetFreeHeapSize());
+    printf("*******************************************\n");
+
+    return mp_const_none;
+}
+MP_DEFINE_CONST_FUN_OBJ_0(machine_info_obj, machine_info);
+
+
 
 #if 0
 STATIC mp_obj_t machine_deepsleep(mp_obj_t duration_in) {
@@ -82,6 +108,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(machine_deepsleep_obj, machine_deepsleep);
 STATIC const mp_map_elem_t machine_module_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR___name__),      MP_OBJ_NEW_QSTR(MP_QSTR_umachine) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_reboot),        MP_OBJ_FROM_PTR(&machine_reset_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_memInfo),          MP_OBJ_FROM_PTR(&machine_info_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_UART),          MP_OBJ_FROM_PTR(&uart_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_Pin),           MP_OBJ_FROM_PTR(&pin_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_Timer),         MP_OBJ_FROM_PTR(&timer_type) },
@@ -94,7 +121,7 @@ STATIC const mp_map_elem_t machine_module_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_SPI),           MP_OBJ_FROM_PTR(&machine_spi_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_ADC),           MP_OBJ_FROM_PTR(&adc_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_SDCard),          MP_OBJ_FROM_PTR(&sdcard_type) },
-	{ MP_OBJ_NEW_QSTR(MP_QSTR_FLASH),         MP_OBJ_FROM_PTR(&flash_type) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_FLASH),         MP_OBJ_FROM_PTR(&flash_type) },
     #if 0
     { MP_OBJ_NEW_QSTR(MP_QSTR_CRYPTO),        MP_OBJ_FROM_PTR(&crypto_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_WDT),           MP_OBJ_FROM_PTR(&wdt_type) },

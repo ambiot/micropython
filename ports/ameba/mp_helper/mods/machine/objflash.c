@@ -4,6 +4,8 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2017 Chester Tseng
+ * Copyright (c) 2021 Huang Yue
+ * Copyright (c) 2022 Simon Xi 
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +27,25 @@
  */
 
 #include "objflash.h"
+#include "integer.h"
+#include "stdint.h"
+#include "diskio.h"
+#include "stdio.h"
+#include "device_lock.h"
+#include "platform_opts.h"
+#include "extmod/vfs.h"
+
+
+//#define FLASH_BLOCK_SIZE    64 * 1024     // KB?
+#define FLASH_BLOCK_SIZE    512     // Byte
+
+#define FLASH_SECTOR_COUNT  128     // 128 * 4KB = 512KB
+#define SECTOR_SIZE_FLASH   4096    // 4KB
+
+//#define FLASH_START_OFFSET  0x100000
+#define FLASH_START_OFFSET  0x106000    // offset to SPI_FLASH_BASE (0x0800 0000), equals to 0x0810 6000(KM0 IMG2 OTA2)
+#define FLASH_FS_LEN        SECTOR_SIZE_FLASH * FLASH_SECTOR_COUNT  // by default 512KB for Flash_FatFS (at most 999KB can be allocated to Flash FatFS)
+
 
 /*****************************************************************************
  *                              External variables
@@ -33,185 +54,166 @@
 /*****************************************************************************
  *                              Internal functions
  * ***************************************************************************/
-STATIC flash_obj_t flash_obj = {
-    .base.type = &flash_type,
+static flash_t amb_flash;
+const mp_obj_type_t flash_type;
+
+
+STATIC flash_obj_t amb_flash_obj = {
+        .base = { &flash_type },
+        .block_size = SECTOR_SIZE_FLASH,
+        .start = FLASH_START_OFFSET,
+        .len = FLASH_FS_LEN,
 };
 
-STATIC void flash_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
+
+STATIC void amb_flash_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     flash_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    mp_printf(print, "FLASH()");
+    mp_printf(print, "FLASH(start=0x%08x, len=%u)", self->start, self->len);
 }
 
-STATIC mp_obj_t flash_read(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum {ARG_nbytes, ARG_addr};
-    STATIC const mp_arg_t flash_read_args[] = {
-        { MP_QSTR_nbytes, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_addr,   MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL}, },
-    };
 
-    flash_obj_t *self = pos_args[0];
-
-    // parse args
-    mp_arg_val_t args[MP_ARRAY_SIZE(flash_read_args)];
-    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(args),
-        flash_read_args, args);
-
-    vstr_t vstr;
-    mp_obj_t o_ret = pyb_buf_get_for_recv(args[ARG_nbytes].u_obj, &vstr);
-    mp_uint_t addr = mp_obj_get_int(args[ARG_addr].u_obj);
-    
-		device_mutex_lock(RT_DEV_LOCK_FLASH);
-    uint8_t ret =  flash_burst_read(&(self->obj), addr, vstr.len, vstr.buf);
-		device_mutex_unlock(RT_DEV_LOCK_FLASH);
-
-    if (ret != 1) {
-        mp_raise_msg(&mp_type_OSError, "FLASH read error");
-    }
-
-    if (o_ret != MP_OBJ_NULL) {
-      return o_ret;
-    } else {
-      return mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
-    }
+int interpret_flash_result(int out){
+    int res;
+    if(out)
+        res = RES_OK;
+    else 
+        res = RES_ERROR;
+    return res;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(flash_read_obj, 2, flash_read);
 
-STATIC mp_obj_t flash_write(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    enum { ARG_buf, ARG_addr};
-    STATIC const mp_arg_t flash_write_args[] = {
-        { MP_QSTR_buf,  MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_addr, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-    };
 
-    flash_obj_t *self = pos_args[0];
-
-    // parse args
-    mp_arg_val_t args[MP_ARRAY_SIZE(flash_write_args)];
-    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(args), 
-        flash_write_args, args);
-
-    // get the buffer to send from
+/* Read block(s) --------------------------------------------*/ 
+mp_obj_t amb_flash_readblocks(size_t n_args, const mp_obj_t *args) {  
+    flash_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+    uint32_t block_num = mp_obj_get_int(args[1]);
     mp_buffer_info_t bufinfo;
-    uint8_t data[1];
-    pyb_buf_get_for_send(args[ARG_buf].u_obj, &bufinfo, data);
+    mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_WRITE);
 
-    mp_uint_t addr = mp_obj_get_int(args[ARG_addr].u_obj);
-
-		device_mutex_lock(RT_DEV_LOCK_FLASH);
-    uint8_t ret = flash_stream_write(&(self->obj), addr, bufinfo.len, bufinfo.buf);
-		device_mutex_unlock(RT_DEV_LOCK_FLASH);
-
-    if (ret != 1) {
-        mp_raise_OSError("FLASH write error");
-    }
-  
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(flash_write_obj, 2, flash_write);
-
-STATIC mp_obj_t flash_erase_sector0(mp_obj_t self_in, mp_obj_t addr_in) {
-    mp_int_t addr = mp_obj_get_int(addr_in);
-    flash_obj_t *self = MP_OBJ_TO_PTR(self_in);
-		device_mutex_lock(RT_DEV_LOCK_FLASH);
-    flash_erase_sector(&(self->obj), addr);
-		device_mutex_unlock(RT_DEV_LOCK_FLASH);
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(flash_erase_sector_obj, flash_erase_sector0);
-
-STATIC mp_obj_t flash_erase_block0(mp_obj_t self_in, mp_obj_t addr_in) {
-    mp_int_t addr = mp_obj_get_int(addr_in);
-    flash_obj_t *self = MP_OBJ_TO_PTR(self_in);
-		device_mutex_lock(RT_DEV_LOCK_FLASH);
-    flash_erase_block(&(self->obj), addr);
-		device_mutex_unlock(RT_DEV_LOCK_FLASH);
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(flash_erase_block_obj, flash_erase_block0);
-
-STATIC mp_obj_t flash_read_id0(mp_obj_t self_in) {
-    flash_obj_t *self = MP_OBJ_TO_PTR(self_in);
-		device_mutex_lock(RT_DEV_LOCK_FLASH);
-    uint8_t data[3];
-    uint8_t ret = flash_read_id(&(self->obj), data, sizeof(data));
-		device_mutex_unlock(RT_DEV_LOCK_FLASH);
-    if (ret != 3) {
-      mp_raise_OSError("FLASH read id error");
+    if (n_args == 4) {
+        uint32_t offset = mp_obj_get_int(args[3]);
+        if (offset) {
+            mp_raise_ValueError(MP_ERROR_TEXT("offset addressing not supported"));
+        }
     }
 
-    uint16_t device_id = data[1] + (data[0] << 0xFF);
-    uint8_t manufactor_id = data[0];
+    int res;
+    char retry_cnt = 0;
 
-    mp_obj_t tuple[2] = {
-      mp_obj_new_int(manufactor_id),
-      mp_obj_new_int(device_id),
-    };
-    return mp_obj_new_tuple(2, tuple);
+    // Must enter critical section before manipulate flash
+    device_mutex_lock(RT_DEV_LOCK_FLASH);
+    do{
+        res = interpret_flash_result(flash_stream_read(&(self->obj), FLASH_START_OFFSET + block_num*SECTOR_SIZE_FLASH, bufinfo.len / self->block_size, (uint8_t *) bufinfo.buf));
+        if(++retry_cnt>=3)
+            break;
+    } while (res != RES_OK);
+    device_mutex_unlock(RT_DEV_LOCK_FLASH);
+    return MP_OBJ_NEW_SMALL_INT(res);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(flash_read_id_obj, flash_read_id0);
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(amb_flash_readblocks_obj, 3, 4, amb_flash_readblocks);
 
-STATIC mp_obj_t flash_update(mp_uint_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args){
-    enum { ARG_buf, ARG_addr};
-    STATIC const mp_arg_t flash_write_args[] = {
-        { MP_QSTR_buf,  MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_addr, MP_ARG_REQUIRED | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-    };
 
-    flash_obj_t *self = pos_args[0];
 
-    // parse args
-    mp_arg_val_t args[MP_ARRAY_SIZE(flash_write_args)];
-    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args, MP_ARRAY_SIZE(args), 
-        flash_write_args, args);
 
-    // get the buffer to send from
+/* Write block(s) --------------------------------------------*/
+mp_obj_t amb_flash_writeblocks(size_t n_args, const mp_obj_t *args) {
+    flash_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+    uint32_t block_num = mp_obj_get_int(args[1]);
     mp_buffer_info_t bufinfo;
-    uint8_t data[1];
-    pyb_buf_get_for_send(args[ARG_buf].u_obj, &bufinfo, data);
+    mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_WRITE);
 
-    mp_uint_t addr = mp_obj_get_int(args[ARG_addr].u_obj);
-        device_mutex_lock(RT_DEV_LOCK_FLASH);
-    flash_erase_sector(&(self->obj), addr);
-        device_mutex_unlock(RT_DEV_LOCK_FLASH);
-
-
-        device_mutex_lock(RT_DEV_LOCK_FLASH);
-    uint8_t ret = flash_stream_write(&(self->obj), addr, bufinfo.len, bufinfo.buf);
-        device_mutex_unlock(RT_DEV_LOCK_FLASH);
-
-    if (ret != 1) {
-        mp_raise_OSError("FLASH write error");
+    if (n_args == 4) {
+        uint32_t offset = mp_obj_get_int(args[3]);
+        if (offset) {
+            mp_raise_ValueError(MP_ERROR_TEXT("offset addressing not supported"));
+        }
     }
-  
-    return mp_const_none;
+
+    int res;
+    char retry_cnt = 0, i = 0;
+
+    int count = bufinfo.len / self->block_size;
+
+    // must enter critical section before manipulate flash
+    device_mutex_lock(RT_DEV_LOCK_FLASH);
+    do{
+        for(i=0;i<count;i++){            
+            uint32_t erase_addr = FLASH_START_OFFSET + (block_num + i)*SECTOR_SIZE_FLASH;
+
+            flash_erase_sector(&(self->obj), erase_addr);
+            res = interpret_flash_result(flash_stream_write(&(self->obj), FLASH_START_OFFSET + (block_num + i)*SECTOR_SIZE_FLASH, count*SECTOR_SIZE_FLASH, (uint8_t *) bufinfo.buf));
+        }
+        if(++retry_cnt>=3)
+            break;
+        
+    } while (res != RES_OK);
+    device_mutex_unlock(RT_DEV_LOCK_FLASH);
+
+    return MP_OBJ_NEW_SMALL_INT(res);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(flash_update_obj, 2, flash_update);
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(amb_flash_writeblocks_obj, 3, 4, amb_flash_writeblocks);
+
+
+/* IOCTL blocks(s) --------------------------------------------*/
+STATIC mp_obj_t amb_flash_ioctl (mp_obj_t self_in, mp_obj_t cmd_in, mp_obj_t arg_in){
+    flash_obj_t *self = MP_OBJ_TO_PTR(self_in);
+    mp_int_t cmd = mp_obj_get_int(cmd_in);
+    switch (cmd) {
+        case MP_BLOCKDEV_IOCTL_INIT: {
+            return MP_OBJ_NEW_SMALL_INT(0);
+        }
+        case MP_BLOCKDEV_IOCTL_DEINIT: {
+            return MP_OBJ_NEW_SMALL_INT(0);
+        }
+        case MP_BLOCKDEV_IOCTL_SYNC: {
+            return MP_OBJ_NEW_SMALL_INT(0);
+        }
+        case MP_BLOCKDEV_IOCTL_BLOCK_COUNT: {
+            return MP_OBJ_NEW_SMALL_INT(FLASH_SECTOR_COUNT); // 128
+        }
+        case MP_BLOCKDEV_IOCTL_BLOCK_SIZE: {
+            return MP_OBJ_NEW_SMALL_INT(SECTOR_SIZE_FLASH); // 4KB
+        }
+        case MP_BLOCKDEV_IOCTL_BLOCK_ERASE: {
+            mp_int_t block_num = mp_obj_get_int(arg_in);
+            for( int i = block_num ; i > 0; i--) {
+                flash_erase_block(&(self->obj), self->start);
+            }
+            return MP_OBJ_NEW_SMALL_INT(0);
+        }
+        default: {
+            return mp_const_none;
+        }
+    }
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(amb_flash_ioctl_obj, amb_flash_ioctl);
 
 
 
-STATIC const mp_map_elem_t flash_locals_table[] = {
-    //{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_flash) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_read), MP_OBJ_FROM_PTR(&flash_read_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_write), MP_OBJ_FROM_PTR(&flash_write_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_erase_sector), MP_OBJ_FROM_PTR(&flash_erase_sector_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_erase_block), MP_OBJ_FROM_PTR(&flash_erase_block_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_read_id), MP_OBJ_FROM_PTR(&flash_read_id_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_update), MP_OBJ_FROM_PTR(&flash_update_obj) },
-};
-STATIC MP_DEFINE_CONST_DICT(flash_locals_dict, flash_locals_table);
-
-STATIC mp_obj_t flash_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    // check arguments
+STATIC mp_obj_t amb_flash_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
+    // Check args.
     mp_arg_check_num(n_args, n_kw, 0, 0, false);
 
-    // return singleton object
-    return (mp_obj_t)&flash_obj;
+    amb_flash_obj.obj = amb_flash;
+
+    // Return singleton object.
+    return MP_OBJ_FROM_PTR(&amb_flash_obj);
 }
+
+
+
+
+STATIC const mp_rom_map_elem_t amb_flash_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_readblocks), MP_ROM_PTR(&amb_flash_readblocks_obj) },
+    { MP_ROM_QSTR(MP_QSTR_writeblocks), MP_ROM_PTR(&amb_flash_writeblocks_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ioctl), MP_ROM_PTR(&amb_flash_ioctl_obj) },
+};
+STATIC MP_DEFINE_CONST_DICT(amb_flash_locals_dict, amb_flash_locals_dict_table);
+
 
 const mp_obj_type_t flash_type = {
     { &mp_type_type },
     .name        = MP_QSTR_FLASH,
-    .print       = flash_print,
-    .make_new    = flash_make_new,
-    .locals_dict = (mp_obj_dict_t *)&flash_locals_dict,
+    .print       = amb_flash_print,
+    .make_new    = amb_flash_make_new,
+    .locals_dict = (mp_obj_dict_t *)&amb_flash_locals_dict,
 };

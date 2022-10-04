@@ -392,7 +392,7 @@ cleanpwd:
 com:
 	@if [ $(findstring CYGWIN, $(OS)) = CYGWIN ]; \
 		then ttermpro /C=8 /BAUD=115200; \
-		else mpremote; fi
+		else mpremote connect $(UPLOAD_PATH); fi
 
 
 .PHONY: release

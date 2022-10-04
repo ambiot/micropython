@@ -29,15 +29,17 @@
 #include "py/mpstate.h"
 #include "py/runtime.h"
 #include "py/mphal.h"
-#include "device_lock.h"
-
 #include "flash_api.h"
+
 
 extern const mp_obj_type_t flash_type;
 
 typedef struct {
     mp_obj_base_t base;
-    flash_t         obj;
+    flash_t       obj;
+    size_t        block_size;
+    size_t        start;
+    size_t        len;
 } flash_obj_t;
 
 #endif  // OBJFLASH_H_
