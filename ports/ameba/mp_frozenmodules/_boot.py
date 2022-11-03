@@ -5,11 +5,14 @@ import sys
 from wireless import WLAN
 from machine import Pin, UART, Timer, RTC, PWM, I2C, SPI, ADC, FLASH
 from socket import SOCK
+
 print("[MP]: Imported all builtin libraries")
 print()
 
 
 print("[MP]: Connecting to Filesystem")
+
+
 """
 # Try to mount the filesystem, and format the SD card if it doesn't exist.
 sd = machine.SDCard()
@@ -30,9 +33,10 @@ except:
     sys.print_exception()
 
 del sd, vfs
+
 """
 
-# Mount on VFS on FLASH
+# Try to mount the filesystem, and format the flash if it doesn't exist.
 bdev = machine.FLASH()
 
 try: 

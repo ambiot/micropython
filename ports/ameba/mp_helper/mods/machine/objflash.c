@@ -36,13 +36,10 @@
 #include "extmod/vfs.h"
 
 
-//#define FLASH_BLOCK_SIZE    64 * 1024     // KB?
-#define FLASH_BLOCK_SIZE    512     // Byte
-
+#define FLASH_BLOCK_SIZE    512     
 #define FLASH_SECTOR_COUNT  128     // 128 * 4KB = 512KB
 #define SECTOR_SIZE_FLASH   4096    // 4KB
 
-//#define FLASH_START_OFFSET  0x100000
 #define FLASH_START_OFFSET  0x106000    // offset to SPI_FLASH_BASE (0x0800 0000), equals to 0x0810 6000(KM0 IMG2 OTA2)
 #define FLASH_FS_LEN        SECTOR_SIZE_FLASH * FLASH_SECTOR_COUNT  // by default 512KB for Flash_FatFS (at most 999KB can be allocated to Flash FatFS)
 
@@ -81,14 +78,13 @@ int interpret_flash_result(int out){
     return res;
 }
 
-
 /* Read block(s) --------------------------------------------*/ 
 mp_obj_t amb_flash_readblocks(size_t n_args, const mp_obj_t *args) {  
     flash_obj_t *self = MP_OBJ_TO_PTR(args[0]);
     uint32_t block_num = mp_obj_get_int(args[1]);
     mp_buffer_info_t bufinfo;
     mp_get_buffer_raise(args[2], &bufinfo, MP_BUFFER_WRITE);
-
+ 
     if (n_args == 4) {
         uint32_t offset = mp_obj_get_int(args[3]);
         if (offset) {
@@ -97,12 +93,14 @@ mp_obj_t amb_flash_readblocks(size_t n_args, const mp_obj_t *args) {
     }
 
     int res;
-    char retry_cnt = 0;
+    char retry_cnt = 0, i = 0;
+
+    int count = bufinfo.len / self->block_size;
 
     // Must enter critical section before manipulate flash
     device_mutex_lock(RT_DEV_LOCK_FLASH);
     do{
-        res = interpret_flash_result(flash_stream_read(&(self->obj), FLASH_START_OFFSET + block_num*SECTOR_SIZE_FLASH, bufinfo.len / self->block_size, (uint8_t *) bufinfo.buf));
+        res = interpret_flash_result(flash_stream_read(&(self->obj), FLASH_START_OFFSET + block_num * SECTOR_SIZE_FLASH, count*SECTOR_SIZE_FLASH, (uint8_t *) bufinfo.buf));
         if(++retry_cnt>=3)
             break;
     } while (res != RES_OK);
@@ -116,6 +114,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(amb_flash_readblocks_obj, 3, 4, amb_f
 
 /* Write block(s) --------------------------------------------*/
 mp_obj_t amb_flash_writeblocks(size_t n_args, const mp_obj_t *args) {
+//    printf("n_args[writeblocks] = %d\r\n", n_args);
     flash_obj_t *self = MP_OBJ_TO_PTR(args[0]);
     uint32_t block_num = mp_obj_get_int(args[1]);
     mp_buffer_info_t bufinfo;
@@ -157,6 +156,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(amb_flash_writeblocks_obj, 3, 4, amb_
 STATIC mp_obj_t amb_flash_ioctl (mp_obj_t self_in, mp_obj_t cmd_in, mp_obj_t arg_in){
     flash_obj_t *self = MP_OBJ_TO_PTR(self_in);
     mp_int_t cmd = mp_obj_get_int(cmd_in);
+    
     switch (cmd) {
         case MP_BLOCKDEV_IOCTL_INIT: {
             return MP_OBJ_NEW_SMALL_INT(0);
@@ -167,14 +167,16 @@ STATIC mp_obj_t amb_flash_ioctl (mp_obj_t self_in, mp_obj_t cmd_in, mp_obj_t arg
         case MP_BLOCKDEV_IOCTL_SYNC: {
             return MP_OBJ_NEW_SMALL_INT(0);
         }
+        //Get sector count 
         case MP_BLOCKDEV_IOCTL_BLOCK_COUNT: {
             return MP_OBJ_NEW_SMALL_INT(FLASH_SECTOR_COUNT); // 128
         }
+        //Get sector size
         case MP_BLOCKDEV_IOCTL_BLOCK_SIZE: {
-            return MP_OBJ_NEW_SMALL_INT(SECTOR_SIZE_FLASH); // 4KB
+            return MP_OBJ_NEW_SMALL_INT(SECTOR_SIZE_FLASH); // 4096(4KB)
         }
         case MP_BLOCKDEV_IOCTL_BLOCK_ERASE: {
-            mp_int_t block_num = mp_obj_get_int(arg_in);
+            uint32_t block_num = mp_obj_get_int(arg_in);
             for( int i = block_num ; i > 0; i--) {
                 flash_erase_block(&(self->obj), self->start);
             }
@@ -185,8 +187,8 @@ STATIC mp_obj_t amb_flash_ioctl (mp_obj_t self_in, mp_obj_t cmd_in, mp_obj_t arg
         }
     }
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_3(amb_flash_ioctl_obj, amb_flash_ioctl);
 
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(amb_flash_ioctl_obj, amb_flash_ioctl);
 
 
 STATIC mp_obj_t amb_flash_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
@@ -198,8 +200,6 @@ STATIC mp_obj_t amb_flash_make_new(const mp_obj_type_t *type, size_t n_args, siz
     // Return singleton object.
     return MP_OBJ_FROM_PTR(&amb_flash_obj);
 }
-
-
 
 
 STATIC const mp_rom_map_elem_t amb_flash_locals_dict_table[] = {
