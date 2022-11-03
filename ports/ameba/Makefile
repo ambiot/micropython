@@ -23,6 +23,7 @@ $(info ## Please specify which board you are building for, currently supported b
 $(info    )
 $(info    * RTL8722DM)
 $(info    * RTL8722DM_MINI)
+$(info    * BW16)
 $(info    )
 $(info ## Now building for: $(BOARD))
 

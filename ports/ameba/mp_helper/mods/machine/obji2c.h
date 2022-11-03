@@ -75,6 +75,16 @@ static const PinMap PinMap_I2C_SCL[] = {
    
     {NC,    NC,     0}
 };
+#elif defined(BW16)
+static const PinMap PinMap_I2C_SDA[] = {
+    {PA_26, I2C_0,      1},
+    {NC,    NC,     0}
+};
+
+static const PinMap PinMap_I2C_SCL[] = {
+    {PA_25, I2C_0,     1},
+    {NC,    NC,     0}
+};
 #else
 #error "Please specify the correct board name before re-try"
 #endif 

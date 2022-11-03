@@ -32,8 +32,11 @@
 /*****************************************************************************
  *                              Inernal variables
  * ***************************************************************************/
+#if defined(BW16)
+#define ADC_MAX_NUM  1
+STATIC adc_obj_t adc_obj[ADC_MAX_NUM] = {{.base.type = &adc_type, .unit = 0, .pin = AD_6 }}; // AD_6 = PB_3
+#else
 #define ADC_MAX_NUM  7
-
 STATIC adc_obj_t adc_obj[ADC_MAX_NUM] = {{.base.type = &adc_type, .unit = 0, .pin = AD_0 },
                                          {.base.type = &adc_type, .unit = 1, .pin = AD_1 },
                                          {.base.type = &adc_type, .unit = 2, .pin = AD_2 },
@@ -41,7 +44,7 @@ STATIC adc_obj_t adc_obj[ADC_MAX_NUM] = {{.base.type = &adc_type, .unit = 0, .pi
                                          {.base.type = &adc_type, .unit = 4, .pin = AD_4 },
                                          {.base.type = &adc_type, .unit = 5, .pin = AD_5 },
                                          {.base.type = &adc_type, .unit = 6, .pin = AD_6 }};
-
+#endif
 /*****************************************************************************
  *                              Internal functions
  * ***************************************************************************/
@@ -67,7 +70,7 @@ STATIC mp_obj_t adc_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uin
     mp_arg_val_t args[MP_ARRAY_SIZE(adc_init_args)];
     mp_arg_parse_all(n_args, all_args, &kw_args, MP_ARRAY_SIZE(args), adc_init_args, args);
     
-    if ((args[0].u_int < 0) || (args[0].u_int > 6)) {
+    if ((args[0].u_int < 0) || (args[0].u_int > ADC_MAX_NUM)) {
         mp_raise_ValueError("Pin function not avaliable");
     }
 

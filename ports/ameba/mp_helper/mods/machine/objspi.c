@@ -48,6 +48,11 @@ STATIC spi_obj_t spi_obj[2] = {
     {.base.type = &machine_spi_type, .unit = 0, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
     {.base.type = &machine_spi_type, .unit = 1, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
 };
+#elif defined(BW16)
+STATIC spi_obj_t spi_obj[2] = {
+    {.base.type = &machine_spi_type, .unit = 0, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
+    {.base.type = &machine_spi_type, .unit = 1, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
+};
 #else
 #error "Please specify the correct board name before re-try"
 #endif 
@@ -88,9 +93,9 @@ STATIC mp_obj_t machine_spi_make_new(const mp_obj_type_t *type, mp_uint_t n_args
         mp_raise_ValueError("Invalid SPI unit");
     }
 
-    #if defined(RTL8722DM_MINI)
+    #if defined(RTL8722DM_MINI) || defined(BW16)
     if (args[ARG_unit].u_int == 0){
-        mp_raise_ValueError("MINI board doesn't support SPI 0, use SPI 1 instead!");
+        mp_raise_ValueError("This board doesn't support SPI 0, use SPI 1 instead!");
     }
     #endif
 

@@ -202,6 +202,8 @@ extern const struct _mp_obj_module_t mp_network_module;
 #define MICROPY_HW_MCU_NAME                 "RTL8722DM"
 #elif defined(RTL8722DM_MINI)
 #define MICROPY_HW_MCU_NAME                 "RTL8722DM_MINI"
+#elif defined(BW16)
+#define MICROPY_HW_MCU_NAME                 "BW16"
 #else
 #error "Please specify the correct board name before re-try"
 #endif 

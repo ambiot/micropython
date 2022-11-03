@@ -69,7 +69,7 @@ extern const PinMap PinMap_SPI_MISO[];
 #define SPI_1_SCLK  PB_6
 #define SPI_1_CS    PB_7
 
-#elif defined(RTL8722DM_MINI)
+#elif defined(RTL8722DM_MINI) || defined(BW16)
 #define SPI_0_MOSI  PB_4
 #define SPI_0_MISO  PB_5
 #define SPI_0_SCLK  PB_6
@@ -79,8 +79,6 @@ extern const PinMap PinMap_SPI_MISO[];
 #define SPI_1_MISO  PA_13
 #define SPI_1_SCLK  PA_14
 #define SPI_1_CS    PA_15
-
-
 
 #else
 #error "Please specify the correct board name before re-try"

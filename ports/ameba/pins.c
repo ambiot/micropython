@@ -198,6 +198,69 @@ const PinMap PinMap_SPI_MISO[] = {
 
     {NC,    NC,     0}
 };
+
+////////////////////////////////////////////
+//                                        //
+//     Pin Definition for BW16(RTL8720DN) //
+//                                        //
+////////////////////////////////////////////
+#elif defined(BW16)
+const PinMap PinMap_UART_TX[] = {
+    AF(PB_1, UART, _0, PullUp),
+    {NC,    NC,     0}
+};
+
+const PinMap PinMap_UART_RX[] = {
+    AF(PB_2, UART, _0, PullUp),
+    {NC,    NC,     0}
+};
+
+
+const PinMap PinMap_I2C_SDA[] = {
+    AF(PA_26, I2C, _0, PullUp),
+    {NC,    NC,     0}
+};
+
+const PinMap PinMap_I2C_SCL[] = {
+    AF(PA_25, I2C, _0, PullUp),
+    {NC,    NC,     0}
+};
+
+typedef enum {
+    PWM_6 = 7,
+    PWM_7,
+    PWM_8,
+    PWM_9
+} PWMName_MP;
+
+
+const PinMap PinMap_PWM[] = {
+    AF(PA_12,  PWM, _2, PullNone),
+    AF(PA_13, PWM, _3, PullNone),
+    AF(PA_25,  PWM, _4, PullNone),
+    AF(PA_26, PWM, _5, PullNone),
+    AF(PA_30, PWM, _6, PullNone),
+    {NC,    NC,     0}
+};
+
+// BF is only for SPI, right now only support master mode
+#define BF(pin_name, af_name, af_index, pull) \
+{ \
+    .pin        = pin_name,                                 \
+    .peripheral = af_name ## af_index,                      \
+    .function   = PIN_DATA(pull, PINMUX_FUNCTION_ ## af_name ## M) \
+}
+
+const PinMap PinMap_SPI_MOSI[] = {
+    BF(PA_12, SPI, _0, 0),
+    {NC,    NC,     0}
+};
+
+const PinMap PinMap_SPI_MISO[] = {
+    BF(PA_13, SPI, _0, 0),
+    {NC,    NC,     0}
+};
+
 #else
 #error "Please specify the correct board name before re-try"
 #endif 
