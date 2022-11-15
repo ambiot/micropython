@@ -41,7 +41,7 @@ extern const mp_obj_type_t machine_pwm_type;
   *           {pinName, km0_pin2chan, km4_pin2chan}
   */
 static const PinMap PinMap_PWM[] = {
-    {PA_13,  0, 0},
+    {PA_12,  0, 0},
     {PA_13,  1, 1},
     {PA_23,  2, 2},
     {PA_24,  3, 3},

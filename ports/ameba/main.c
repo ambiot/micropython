@@ -147,6 +147,7 @@ int main (void) {
     PAD_PullCtrl(_PB_1, GPIO_PuPd_NOPULL);
     PAD_PullCtrl(_PB_2, GPIO_PuPd_NOPULL);
     PAD_PullCtrl(_PB_3, GPIO_PuPd_NOPULL);
+    sys_jtag_off();
 
 
 //    osThreadDef(micropython_task, MICROPY_TASK_PRIORITY, 1, MICROPY_TASK_STACK_DEPTH);

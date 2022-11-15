@@ -44,7 +44,7 @@ OBJCOPY = $(TC_PATH)$(CROSS_COMPILE)objcopy.exe
 OBJDUMP = $(TC_PATH)$(CROSS_COMPILE)objdump.exe
 STRIP = $(TC_PATH)$(CROSS_COMPILE)strip.exe
 POSTBUILD = postbuild_img2_arduino_windows.exe
-IMAGETOOL = amebad_image_tool.exe
+IMAGETOOL = upload_image_tool_windows.exe
 PICK = pick.exe
 PAD  = pad.exe
 BUILDTOOL_PATH := tools/windows
@@ -68,7 +68,7 @@ OBJCOPY = $(TC_PATH)$(CROSS_COMPILE)objcopy
 OBJDUMP = $(TC_PATH)$(CROSS_COMPILE)objdump
 STRIP = $(TC_PATH)$(CROSS_COMPILE)strip
 POSTBUILD = postbuild_img2_arduino_linux
-IMAGETOOL = amebad_image_tool
+IMAGETOOL = upload_image_tool_linux
 PICK = pick
 PAD  = pad
 BUILDTOOL_PATH := tools/linux
@@ -92,7 +92,7 @@ OBJCOPY = $(TC_PATH)$(CROSS_COMPILE)objcopy
 OBJDUMP = $(TC_PATH)$(CROSS_COMPILE)objdump
 STRIP = $(TC_PATH)$(CROSS_COMPILE)strip
 POSTBUILD = postbuild_img2_arduino_macos
-IMAGETOOL = amebad_image_tool
+IMAGETOOL = upload_image_tool_macos
 PICK = pick
 PAD  = pad
 BUILDTOOL_PATH := tools/macos
@@ -310,7 +310,7 @@ LIBFLAGS = -Wl,--no-enum-size-warning -Wl,--warn-common -Wl,--print-memory-usage
 LIBAR += -Wl,--start-group
 LIBAR += -L$(VENDOR)/../lib/ -l_micropython -l_wlan -l_wps 
 LIBAR += -l_websocket -l_user -l_usbh -l_usbd -l_tftp -l_mdns -l_m4a_self 
-LIBAR += -l_httpd -l_httpc -l_eap -l_dct -l_coap -l_cmsis_dsp -l_arduino_bt -l_arduino_mbedtls240
+LIBAR += -l_httpd -l_httpc -l_eap -l_dct -l_coap -l_cmsis_dsp -l_arduino_bt -l_arduino_mbedtls240 -l_pmc_hp -l_pmc_lp
 LIBAR += -Wl,--end-group
 
 
@@ -373,7 +373,7 @@ manipulate_images: $(POSTBUILD)
 .PHONY: upload
 upload: $(IMAGETOOL)
 	$(Q)echo '## Make sure Ameba serial port name has been correctly updated in the Makefile!'
-	./$(BUILD)/$(IMAGETOOL) $(UPLOAD_PATH)
+	./$(BUILD)/$(IMAGETOOL) ./ $(UPLOAD_PATH) ameba_rtl8722dm_mini Disable Disable 1500000
 
 
 .PHONY: purge
