@@ -197,7 +197,7 @@ STATIC void machine_spi_transfer(mp_obj_base_t *self_in, size_t len, const uint8
     spi_obj_t *self = (spi_obj_t *)self_in;
 
     // Check if there is no destination buffer given
-    bool write_only = dest == NULL;
+    bool write_only = (dest == NULL);
 
     if (write_only) {
         if (self->mode == SPI_MASTER) {
@@ -207,6 +207,7 @@ STATIC void machine_spi_transfer(mp_obj_base_t *self_in, size_t len, const uint8
         }
     } else {
         // reading and writing large trunk of data at the same time
+        spi_flush_rx_fifo(&mp_spi_obj[id]);
         spi_master_write_read_stream(&mp_spi_obj[id], src, dest, len);
     }
 }

@@ -34,6 +34,7 @@
 extern const mp_obj_type_t rtc_type;
 
 #define SECS_IN_30YEARS (365*30+7)*24*60*60
+#define NUM_SECS_IN_DAY 86400
 
 typedef struct {
     mp_obj_base_t base;

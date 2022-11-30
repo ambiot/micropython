@@ -25,6 +25,7 @@
  */
 
 #include "objrtc.h"
+#include "rtl8721d_rtc.h"
 
 // singleton RTC object
 STATIC rtc_obj_t rtc_obj = {
@@ -49,13 +50,27 @@ STATIC mp_obj_t rtc_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uin
 }
 
 STATIC mp_obj_t rtc_datetime(mp_uint_t n_args, const mp_obj_t *args) {
+    static uint32_t seconds_ymd_backup = 0;
+    RTC_TimeTypeDef RTC_TimeStruct;
+
     if (n_args == 1) {
-        // Get time
-        clock_t secs = rtc_read();
-        // (Since RTL8195A use 1970 for it's start yaer, so I need to add the seconds of 30 years)
-        secs -= SECS_IN_30YEARS;
+        // RTL872x RTC can only count up to 512 days
+        // Get updated time and reset RTC day counter to 0
+        RTC_GetTime(RTC_Format_BIN, &RTC_TimeStruct);
+        int days = RTC_TimeStruct.RTC_Days;
+        RTC_TimeStruct.RTC_Days = 0;
+        RTC_SetTime(RTC_Format_BIN, &RTC_TimeStruct);
+        int hours = RTC_TimeStruct.RTC_Hours;
+        int mins = RTC_TimeStruct.RTC_Minutes;
+        int secs = RTC_TimeStruct.RTC_Seconds;
+
+        clock_t seconds_elapsed = days * NUM_SECS_IN_DAY;
+        clock_t total_seconds = seconds_elapsed + seconds_ymd_backup + hours * 3600 + mins * 60 + secs;
         timeutils_struct_time_t tm;
-        timeutils_seconds_since_2000_to_struct_time(secs, &tm);
+        timeutils_seconds_since_2000_to_struct_time(total_seconds, &tm);
+
+        // Update backup copy of year month date in seconds
+        seconds_ymd_backup += seconds_elapsed;
 
         mp_obj_t tuple[8] = {
             mp_obj_new_int(tm.tm_year),
@@ -65,7 +80,7 @@ STATIC mp_obj_t rtc_datetime(mp_uint_t n_args, const mp_obj_t *args) {
             mp_obj_new_int(tm.tm_hour),
             mp_obj_new_int(tm.tm_min),
             mp_obj_new_int(tm.tm_sec),
-            mp_obj_new_int(secs)
+            mp_obj_new_int(total_seconds)
         };
 
         return mp_obj_new_tuple(8, tuple);
@@ -74,19 +89,27 @@ STATIC mp_obj_t rtc_datetime(mp_uint_t n_args, const mp_obj_t *args) {
         mp_obj_t *items;
         mp_obj_get_array_fixed_n(args[1], 8, &items);
 
-        rtc_write(
-            ((clock_t)timeutils_seconds_since_2000(
-                mp_obj_get_int(items[0]),
-                mp_obj_get_int(items[1]),
-                mp_obj_get_int(items[2]),
-                mp_obj_get_int(items[4]),
-                mp_obj_get_int(items[5]),
-                mp_obj_get_int(items[6]) + SECS_IN_30YEARS
-            )));
+        uint32_t year = mp_obj_get_int(items[0]);
+        uint32_t month = mp_obj_get_int(items[1]);
+        uint32_t day = mp_obj_get_int(items[2]);
+        uint32_t hour = mp_obj_get_int(items[4]);
+        uint32_t mins = mp_obj_get_int(items[5]);
+        uint32_t secs = mp_obj_get_int(items[6]);
+
+        seconds_ymd_backup = ((clock_t)timeutils_seconds_since_2000(year, month, day, 0, 0, 0));
+
+        // RTL872x RTC can only count up to 512 days, so use it to only count day offsets
+        RTC_TimeStruct.RTC_H12_PMAM = RTC_H12_AM;
+        RTC_TimeStruct.RTC_Days = 0;
+        RTC_TimeStruct.RTC_Hours = hour;
+        RTC_TimeStruct.RTC_Minutes = mins;
+        RTC_TimeStruct.RTC_Seconds = secs;
+        RTC_SetTime(RTC_Format_BIN, &RTC_TimeStruct);
 
         return mp_const_none;
     }
 }
+
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(rtc_datetime_obj, 1, 2, rtc_datetime);
 
 STATIC const mp_map_elem_t rtc_locals_dict_table[] = {
