@@ -23,13 +23,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef OBJWDT_H_
-#define OBJWDT_H_
+
 
 #include "py/mpstate.h"
 #include "py/runtime.h"
 #include "py/mphal.h"
-
 #include "wdt_api.h"
 
 extern const mp_obj_type_t wdt_type;
@@ -38,4 +36,4 @@ typedef struct {
     mp_obj_base_t base;
 } wdt_obj_t;
 
-#endif  // OBJWDT_H_
+

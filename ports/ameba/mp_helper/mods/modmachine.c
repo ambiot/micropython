@@ -45,9 +45,9 @@
 #include "machine/objadc.h"
 #include "machine/objsdcard.h"
 #include "machine/objflash.h"
+#include "machine/objwdt.h"
 /*
 #include "machine/objcrypto.h"
-#include "machine/objwdt.h"
 */
 
 // mbed lib headers
@@ -120,11 +120,11 @@ STATIC const mp_map_elem_t machine_module_globals_table[] = {
     //{ MP_OBJ_NEW_QSTR(MP_QSTR_SPI),           MP_OBJ_FROM_PTR(&spi_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_SPI),           MP_OBJ_FROM_PTR(&machine_spi_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_ADC),           MP_OBJ_FROM_PTR(&adc_type) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_WDT),           MP_OBJ_FROM_PTR(&wdt_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_SDCard),          MP_OBJ_FROM_PTR(&sdcard_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_FLASH),         MP_OBJ_FROM_PTR(&flash_type) },
     #if 0
     { MP_OBJ_NEW_QSTR(MP_QSTR_CRYPTO),        MP_OBJ_FROM_PTR(&crypto_type) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_WDT),           MP_OBJ_FROM_PTR(&wdt_type) },
     #endif
 };
 STATIC MP_DEFINE_CONST_DICT(machine_module_globals, machine_module_globals_table);

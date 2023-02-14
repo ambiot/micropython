@@ -45,6 +45,7 @@
 #include "interrupt_char.h"
 #include "cmsis_os.h"
 #include "ameba_soc.h"
+#include "osdep_service.h"
 
 extern TaskHandle_t mp_main_task_handle;
 

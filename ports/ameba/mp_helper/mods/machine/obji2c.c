@@ -25,6 +25,7 @@
  */
 
 #include "obji2c.h"
+#include "objpin.h"
 
 
 i2c_t i2cwire0;
@@ -35,6 +36,7 @@ STATIC i2c_obj_t i2c_obj[1] = {
     {.base.type = &machine_hw_i2c_type, .unit = 0, .freq = I2C_DEFAULT_BAUD_RATE_HZ },
 };
 
+#if 0 
 int _i2c_read(mp_obj_base_t *self_in, uint8_t *dest, size_t len, bool nack) {
   i2c_obj_t *self = (i2c_obj_t*)self_in;
   mp_uint_t i = 0;
@@ -88,6 +90,7 @@ STATIC const mp_machine_i2c_p_t machine_hard_i2c_p = {
     //.readfrom = _i2c_readfrom,  // xxm
     //.writeto = _i2c_writeto,  // xxm
 };
+#endif
 
 STATIC mp_obj_t machine_i2c_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
     enum {ARG_unit, ARG_scl, ARG_sda, ARG_freq};
@@ -385,11 +388,24 @@ STATIC int machine_i2c_transfer_single(mp_obj_base_t *self_in, uint16_t addr, si
     if (flags & MP_MACHINE_I2C_FLAG_READ) {
         ret = i2c_read(&i2cwire0, addr, buf, len, nostop);
     } else {
-        ret = i2c_write(&i2cwire0, addr, buf, len, nostop);
+        if (len == 0) {
+            //Special case for I2C ping
+            char dummy = '\0';
+            ret = i2c_write(&i2cwire0, addr, &dummy, 1, 1);
+            for (uint32_t i = 0; i < 200 ; i++){
+                asm("nop"); //Delay to wait for I2C transfer to complete
+            }
+            if (ret == 1) {
+                ret = 0;
+            } else {
+                ret = -1;
+            }
+        } else {
+            ret = i2c_write(&i2cwire0, addr, buf, len, 1);
+        }
+        return (ret < 0) ? -MP_EIO : ret;
     }
-    return (ret < 0) ? -MP_EIO : ret;
 }
-
 
 #if 1
 

@@ -33,6 +33,7 @@
 
 #include "bufhelper.h"
 #include "objuart.h"
+#include "objpin.h"
 
 STATIC const char *_parity_name[] = {"None", "1", "0"};
 
@@ -271,7 +272,6 @@ STATIC MP_DEFINE_CONST_DICT(uart_locals_dict, uart_locals_dict_table);
 
 STATIC mp_obj_t uart_recv(mp_obj_t self_in, char *buf_in, mp_uint_t size, int *errcode) {
     uart_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    
     int32_t ret = 0;
 
     // Direct return 0 when size = 0, to save the time

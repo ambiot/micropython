@@ -33,6 +33,8 @@
 #include "py/runtime.h"
 #include "py/compile.h"
 #include "py/gc.h"
+#include "py/stackctrl.h"
+#include "readline.h"
 #include "pyexec.h"
 #include "gccollect.h"
 #include "exception.h"
@@ -44,6 +46,7 @@
 #include "main.h"
 #include "interrupt_char.h"
 #include "mphalport.h"
+#include "sys_api.c"
 
 
 
@@ -101,8 +104,13 @@ soft_reset:
     readline_init0();
     modmachine_init();
 
-    // Execute firmware _boot script
+    // Execute _boot.py to set up the filesystem
     pyexec_frozen_module("_boot.py");
+//    #if MICROPY_VFS_FAT &&  
+//    pyexec_frozen_module("_boot_fat.py");
+//    #else
+//    pyexec_frozen_module("_boot.py");
+//    #endif
 
     // Execute user scripts.
     int ret = pyexec_file_if_exists("boot.py");
@@ -148,7 +156,6 @@ int main (void) {
     PAD_PullCtrl(_PB_2, GPIO_PuPd_NOPULL);
     PAD_PullCtrl(_PB_3, GPIO_PuPd_NOPULL);
     sys_jtag_off();
-
 
 //    osThreadDef(micropython_task, MICROPY_TASK_PRIORITY, 1, MICROPY_TASK_STACK_DEPTH);
 //    main_tid = osThreadCreate(osThread(micropython_task), NULL);

@@ -37,7 +37,7 @@
 #include "lwip/api.h"
 #include <dhcp/dhcps.h>
 #include "netutils.h"
-
+#include "mphalport.h"
 
 extern struct netif xnetif[NET_IF_NUM]; // max 3 network interface
 

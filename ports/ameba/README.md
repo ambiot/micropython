@@ -1,11 +1,7 @@
-# MicroPython Ameba Documentation
+MicroPython Ameba Documentation
+=====================================
 
-> This port is currently only for Realtek's RTL8722DM microcontroller!
-
-Realtek's RTL8722DM is a ARM Cortex-M33 based, dual-band WiFi (2.4G Hz and 5G Hz) and BLE 5.0 capable microntroller that is ideal for many IoT applications.
-
-This MicroPython port is for Ameba RTL8722DM platform, details of the platform can be found here  https://www.amebaiot.com/en/amebad/
-
+This MicroPython port is for AmebaD platform, details of the platform can be found here  https://www.amebaiot.com/en/amebad/
 
 ## 1. How to build firmware?
 
@@ -17,22 +13,23 @@ After that, you can build firmware by using the following command in the current
 $ make
 ```
 
-
 Take note that this build has 2 dependencies,
 1. ARM generic toolchain to be installed seperately and added into your `PATH`
 2. The old `amb_micropython` repository who serve as `BSP` under the `lib` directory 
 
-Also Note that, there are currently 2 `BOARD` supported in this SDK, they are.
-1. RTL8722DM
-2. RTL8722DM_MINI
+Also Note that, there are currently 4 `BOARD` supported in this SDK, they are:
+1. AMB21/AMB22
+2. AMB23
+3. BW16
+4. BW16-TypeC
 
-Thus, in order to build firmware specific to a board, the compile time macro must be added when invoking `make` command. For example, to build for RTL8722DM_MINI, the following command shuold be used instead,
+Thus, in order to build firmware specific to a board, the compile time macro must be added when invoking `make` command. For example, to build for BW16, the following command should be used instead,
 
 ```bash
-$ make BOARD=RTL8722DM_MINI
+$ make BOARD=BW16
 ```
 
-PS: `BOARD` macro default to `RTL8722DM` board thus no macro is required when compiling for this board.
+PS: `BOARD` macro default to `RTL8722DM_MINI` board thus no macro is required when compiling for this board.
 
 
 ### 1.1 FAQ
@@ -70,7 +67,7 @@ $ make upload UPLOAD_PATH=<port>
 ```
 
 
-## 3. How to use MicroPython ameba Port?
+## 3. How to use MicroPython Ameba Port?
 
 ### 3.1 Brief introduction to MicroPython ameba port
 MicroPython distinguishes itself from other compilation-based platforms (Arduino etc.) with its powerful method of real-time interaction to Microcontroller through a built-in feature --  ```REPL```. 
@@ -131,11 +128,9 @@ object <class 'Pin'> is of type type
 4. Ctrl + c : Quick cancel
 	This hotkey help you to cancel any input and return a new line
 
+# Features:
 
-## 4. Peripheral Control -- machine module
-MicroPython Ameba D port supports rich peripheral features through the use of ```machine``` module
-
-### GPIO
+## GPIO
 To control GPIO, import ```Pin``` module through ```machine```. Here pin PB_18 is used as an example to output logic level 0 and 1 and blink 3 times 
 
 ```Python
@@ -177,7 +172,7 @@ PS: type the object name you just created to check its configurations, for examp
 Pin('PA_26', mode=Pin.OUT, pull=Pin.PULL_UP) # this line is returned by MicroPython
 ```
 
-### PWM
+## PWM
 To use PWM (Pulse Width Modulation), import ```PWM``` module through ```machine```. Here pin PB_7 is used as an example to make an LED to slowly brighten up
 
 ```Python
@@ -204,15 +199,7 @@ PWM(pin_name[required], unit_id[optional])
 ```
 Use help(PWM) to view more information about this class
 
-Note: For AMB21(RTL8722DM), PWM is only supported on the following pins,
-PA_23, PA_24, PA_25, PA_26
-
-For AMB23(MINI) board,
-PB_4, PB_5, PB_7, PA_12, PA_13, PA_23, PA_24, PA_28, PA_30
-
-
-
-### ADC
+## ADC
 To use ADC (Analog to Digital Convertor), import ```ADC``` module through ```machine```. Here we connect pin PB_4 to a Potentiometer to read its analogue value  
 
 ```Python
@@ -228,20 +215,8 @@ ADC( unit_id[required])
 ```
 Use help(ADC) to view more information about this class
 
-Note: There are 7 units of ADC pins, they are
-|unit |  Pin  
-|:----|:-----:
-| 0   |  PB_4 
-| 1   |  PB_5 
-| 2   |  PB_6 
-| 3   |  PB_7 
-| 4   |  PB_1 
-| 5   |  PB_2 
-| 6   |  PB_3 
 
-
-
-### Delay and Timing
+## Delay and Timing
 Use the ```time``` module to take advantage of time and delays
 
 ```Python
@@ -254,7 +229,7 @@ start = time.ticks_ms() # get millisecond counter
 Use help(time) to view more information about this class
 
 
-### Timer
+## Timer
 Use the ```Timer``` module through ```machine``` module
 
 There are 3 sets of 32KHz General Timers available to user, Timer 1/2/3
@@ -284,26 +259,25 @@ Note: There are only 3 units of general timer, they are
 |  3   |  TIMER3 |  32 KHz 
 
 
-### RTC
+## RTC
 Use the ```RTC``` (Real Time Clock) module through ```machine``` module
 
 ```Python
 from machine import RTC
 rtc = RTC()
 rtc.datetime() # get date and time 
-rtc.datetime((2020, 12, 31, 4, 23, 58, 59, 0)) # set a specific date and time (year, month, day, weekday(0 for Monday), hour, minute, second, total seconds)
+rtc.datetime((2020, 1, 21, 1, 10, 32, 36, 0)) # set a specific date and time (year, month, day, weekday(0 for Monday), hour, minute, second, total seconds)
 rtc.datetime() # check the updated date and time
 ```
 Use help(RTC) to view more information about this class
 
 
-### UART
+## UART
 Use the ```UART``` module through ```machine``` module
 
 ```Python
 from machine import UART
-uart = UART(tx="PA_21", rx= "PA_22")
-uart.init()
+uart = UART(baudrate=115200,tx="PA_21", rx= "PA_22")
 uart.write('hello')
 uart.read(5) # read up to 5 bytes
 ```
@@ -324,24 +298,9 @@ PS: Leaving all parameters except tx and rx blank will set the uart to default v
 | timeout   |     10 ms
 | flowCtrl  |     -1
 
-For AMB21(RTL8722DM), there are 2 sets of uart, they are
-| unit |   TX   |   RX
-|:-----|:------:|:-------: 
-|  0   |  PA_21 |  PA_22
-|  3   |  PA_26 |  PA_25
-
-For AMB23(MINI) board,
-| unit |   TX   |   RX
-|:-----|:------:|:-------: 
-|  0   |  PA_21 |  PA_22
-|  1   |  PB_1  |  PB_2
-
-
  Use help(UART) to view more information about this class
 
-
-
-### I2C
+## I2C
 Use the ```I2C``` (Inter-Integrated Circuit) module through ```machine``` module
 
 Note: I2C only works in ```master``` mode.
@@ -351,37 +310,9 @@ from machine import Pin, I2C
 i2c = I2C(scl = "PA_25", sda = "PA_26", freq=100000) # configure I2C with pins and freq of 100KHz for AMB21
 # i2c = I2C(scl = "PA_31", sda = "PB_0", freq=100000) # configuration for AMB23(MINI)
 i2c.scan()
-i2c.writeto(8,bytes([123])) # send 1 byte to slave with address 8 with integer '123'
-i2c.writeto(8,str("asf"))  # send a 3 bytes string to slave
+i2c.writeto(8,b'123') # send 1 byte to slave with address 8 with integer '123'
+i2c.writeto(8,b'Hello')  # send a 5 bytes string to slave
 i2c.readfrom(8, 6) # receive 6 bytes from slave
-```
-
-
-#### Arduino Test Code
-```C
-#include <Wire.h>
-
-void setup() {
-  Wire.begin(8);                // join i2c bus with address #8
-  Wire.onReceive(receiveEvent); // register event
-  Serial.begin(9600);           // start serial for output
-}
-
-void loop() {
-  delay(100);
-}
-
-// function that executes whenever data is received from master
-// this function is registered as an event, see setup()
-void receiveEvent(int howMany) {
-  while (1 < Wire.available()) { // loop through all but the last
-    char c = Wire.read(); // receive byte as a character
-    Serial.print(c);         // print the character
-  }
-  int x = Wire.read();    // receive byte as an integer
-  Serial.println((char)x);         // print as char
-  Serial.println(x);               // print as int
-}
 ```
 
 #### For Your Information
@@ -396,22 +327,11 @@ PS: Leaving optional parameters blank will will assume taking default values whi
 | unit_id   |      0
 | frequency |   100000 Hz
 
-For AMB21(RTL8722DM), there is currently 1 set of I2C, it is
-| unit |   sda  |   scl
-|:-----|:------:|:------: 
-|   0  |  PA_26 |  PA_25
-
-For AMB23(MINI) board,
-| unit |   sda  |   scl
-|:-----|:------:|:------: 
-|   0  |  PB_0 |  PA_31
-
 Use help(I2C) to view more information about this class
 
 
-### SPI
+## SPI
 Use the ```SPI``` (Serial Peripheral Interface) module through ```machine``` module
-
 
 ```Python
 from machine import SPI
@@ -462,36 +382,7 @@ PS: Leaving optional parameters blank will assume taking default values which ar
 | sck       |     N.A.
 | mode      |    Master
 
-For AMB21(RTL8722DM), there is currently 2 set of SPI, they are,
-| unit |   mosi |   miso  |  SCK  |  CS
-|:-----|:------:|:-------:|:-----:|:-----: 
-|   0  |  PB_18 |  PB_19  | PB_20 | PB_21
-|   1  |  PB_4  |  PB_5   | PB_6  | PB_7
-
-For AMB23(MINI) board,
-| unit |   mosi |   miso  |  SCK  |  CS
-|:-----|:------:|:-------:|:-----:|:-----: 
-|   1  |  PA_12 |  PA_13  | PA_14 | PA_15
-
-Note: both unit support master mode, but ```only unit 0``` support slave mode
-
 Use help(SPI) to view more information about this class
-
-
-### FLASH
-Use the ```FLASH``` (External FLASH 2MB) module through ```machine``` module
-
-```Python
-from machine import FLASH
-f=FLASH() #create a FLASH object
-f.read(5, 1048576) #read 5 bytes from the specific address (1048576 = 0X100000)
-f.write("Hello", 1048576) #write buffer content to the specific address
-f.update("Hey", 1048576) #erase the existing content and write new content to the specific address
-f.read(5, 1048576)
-```
-
-
-
 
 ## 5. Netoworking
 RTL8722 MicroPython port support WiFi connection through ```WLAN``` module.
@@ -661,39 +552,5 @@ def http_get(url):
 			break
 
 http_get('http://micropython.org/ks/test.html')
-```
-
-## 6.SD Card File System
-SD File System is supported on MicroPython RTL8722 port through importing the ```SDFS``` module from ```machine``` module. This module is a simplified file system with the aim to highlight SD card manipulation, thus it doesn't support virtual file system as well as virtual file object.
-
-Note: No hardware connection is needed for RTL8722DM_mini dev. board as it comes with SD Card slot on the back of the development board, and hardware connection has been pre-configured. However, for RTL8722DM dev. board (the big one), special configuration and fresh build of firmware are needed, please consult developer for more information.
-
-
-### SD Card File System Examples
-Use API provided to freely navigate through the SD card and read/write files as you see fit
-
-#### Listing and navigating through the file system
-```Python
-from machine import SDFS
-
-s=SDFS()          # create an instance and mount on file system on SD card
-s.listdir()       # listing the files and folders under current path
-s.mkdir("test")   # create a folder named "test" under current path
-s.chdir("test")   # change directory to test folder
-s.pwd()           # print out present working directory(current path)
-s.chdir("/")      # change directory bach to root directory
-s.rm("test")      # delete the test folder
-```
-
-#### File Manipulation
-```Python
-from machine import SDFS
-
-s=SDFS()                # create an instance and mount on file system on SD card
-s.create("ameba.txt")   # create a file named "ameba.txt"
-s.write("ameba.txt", "ameba supports sd card file system!") # write a string to the file just created
-s.read("ameba.txt")     # read the content from the same file
-s.rm("ameba.txt")       # delete the file
-```
 
 Note: No file open or close is needed, the API does that automatically for you.

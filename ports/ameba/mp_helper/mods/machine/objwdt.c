@@ -3,8 +3,6 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013, 2014 Damien P. George
- * Copyright (c) 2015 Daniel Campora
  * Copyright (c) 2016 Chester Tseng
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,13 +26,7 @@
 
 #include "objwdt.h"
 
-/*****************************************************************************
- *                              External variables
- * ***************************************************************************/
-
-/*****************************************************************************
- *                              Internal functions
- * ***************************************************************************/
+// singleton Watchdog object
 STATIC wdt_obj_t wdt_obj = {
     .base.type = &wdt_type,
 };
@@ -44,49 +36,50 @@ STATIC void wdt_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t
     mp_printf(print, "WDT()");
 }
 
-STATIC mp_obj_t wdt_start(mp_obj_t self_in, mp_obj_t msec_in) {
-    mp_int_t msec = mp_obj_get_int(msec_in);
-    if (msec <= 0) {
-        mp_raise_ValueError("millisecond must > 0");
-    }
-    watchdog_init(msec);
-    watchdog_start();
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(wdt_start_obj, wdt_start);
-
-STATIC mp_obj_t wdt_stop(mp_obj_t self_in) {
-    watchdog_stop();
-    return mp_const_none;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(wdt_stop_obj, wdt_stop);
-
 STATIC mp_obj_t wdt_feed(mp_obj_t self_in) {
     watchdog_refresh();
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(wdt_feed_obj, wdt_feed);
 
-STATIC const mp_map_elem_t wdt_locals_table[] = {
-    { MP_OBJ_NEW_QSTR(MP_QSTR___name__),        MP_OBJ_NEW_QSTR(MP_QSTR_wdt) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_start),           MP_OBJ_FROM_PTR(&wdt_start_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_stop),            MP_OBJ_FROM_PTR(&wdt_stop_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_feed),            MP_OBJ_FROM_PTR(&wdt_feed_obj) },
-};
-STATIC MP_DEFINE_CONST_DICT(wdt_locals_dict, wdt_locals_table);
+STATIC mp_obj_t wdt_make_new(const mp_obj_type_t *type, mp_uint_t n_args, mp_uint_t n_kw, const mp_obj_t *all_args) {
+    enum { ARG_id, ARG_timeout};
+    const mp_arg_t wdt_init_args[] = {
+        { MP_QSTR_id,       MP_ARG_INT,  {.u_int = 0} },
+        { MP_QSTR_timeout,  MP_ARG_INT,  {.u_int = 5000} },
+    };
+    // parse args
+    mp_map_t kw_args;
+    mp_map_init_fixed_table(&kw_args, n_kw, all_args + n_args);
+    mp_arg_val_t args[MP_ARRAY_SIZE(wdt_init_args)];
+    mp_arg_parse_all(n_args, all_args, &kw_args, MP_ARRAY_SIZE(args), wdt_init_args, args);
 
-STATIC mp_obj_t wdt_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    // check arguments
-    mp_arg_check_num(n_args, n_kw, 0, 0, false);
+    // check unit
+    uint id = args[ARG_id].u_int;
+    if (0 != id) {
+        mp_raise_ValueError("Watchdog timer wrong unit, must use unit 0");
+    }
+    uint timeout = args[ARG_timeout].u_int;
 
-    // return singleton object
+    // init watchdog timer
+    watchdog_init(timeout);
+    watchdog_start();
     return (mp_obj_t)&wdt_obj;
 }
 
+// This is the entry point and is called when the module is imported
+STATIC const mp_map_elem_t wdt_locals_dict_table[] = {
+    { MP_OBJ_NEW_QSTR(MP_QSTR___name__),  MP_OBJ_NEW_QSTR(MP_QSTR_wdt) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_feed),  MP_OBJ_FROM_PTR(&wdt_feed_obj) },
+};
+STATIC MP_DEFINE_CONST_DICT(wdt_locals_dict, wdt_locals_dict_table);
+
 const mp_obj_type_t wdt_type = {
-    { &mp_type_type },
+    { &mp_type_type},
     .name        = MP_QSTR_WDT,
     .print       = wdt_print,
     .make_new    = wdt_make_new,
-    .locals_dict = (mp_obj_dict_t *)&wdt_locals_dict,
+    .locals_dict = (mp_obj_t)&wdt_locals_dict,
 };
+
+
