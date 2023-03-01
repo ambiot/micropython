@@ -1,9 +1,9 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013, 2014 Damien P. George
+ * Copyright (c) 2013-2019 Damien P. George
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,10 +28,16 @@
 
 #include "py/obj.h"
 
-extern const mp_map_t mp_builtin_module_map;
-extern const mp_map_t mp_builtin_module_weak_links_map;
+// Place at the very end of a module's globals_table.
+#define MP_MODULE_ATTR_DELEGATION_ENTRY(ptr) { MP_ROM_QSTR(MP_QSTRnull), MP_ROM_PTR(ptr) }
 
-mp_obj_t mp_module_get(qstr module_name);
-void mp_module_register(qstr qstr, mp_obj_t module);
+extern const mp_map_t mp_builtin_module_map;
+
+mp_obj_t mp_module_get_loaded_or_builtin(qstr module_name);
+#if MICROPY_MODULE_WEAK_LINKS
+mp_obj_t mp_module_get_builtin(qstr module_name);
+#endif
+
+void mp_module_generic_attr(qstr attr, mp_obj_t *dest, const uint16_t *keys, mp_obj_t *values);
 
 #endif // MICROPY_INCLUDED_PY_OBJMODULE_H

@@ -1,4 +1,5 @@
 .. currentmodule:: pyb
+.. _pyb.USB_HID:
 
 class USB_HID -- USB Human Interface Device (HID)
 =================================================
@@ -12,7 +13,7 @@ Before you can use this class, you need to use :meth:`pyb.usb_mode()` to set the
 Constructors
 ------------
 
-.. class:: pyb.USB_HID()
+.. class:: USB_HID()
 
    Create a new USB_HID object.
 
@@ -20,14 +21,14 @@ Constructors
 Methods
 -------
 
-.. method:: USB_HID.recv(data, \*, timeout=5000)
+.. method:: USB_HID.recv(data, *, timeout=5000)
 
    Receive data on the bus:
-   
+
      - ``data`` can be an integer, which is the number of bytes to receive,
        or a mutable buffer, which will be filled with received bytes.
      - ``timeout`` is the timeout in milliseconds to wait for the receive.
-   
+
    Return value: if ``data`` is an integer then a new buffer of the bytes received,
    otherwise the number of bytes read into ``data`` is returned.
 

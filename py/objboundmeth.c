@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * The MIT License (MIT)
  *
@@ -51,6 +51,9 @@ mp_obj_t mp_call_method_self_n_kw(mp_obj_t meth, mp_obj_t self, size_t n_args, s
     // need to insert self before all other args and then call meth
     size_t n_total = n_args + 2 * n_kw;
     mp_obj_t *args2 = NULL;
+    #if MICROPY_ENABLE_PYSTACK
+    args2 = mp_pystack_alloc(sizeof(mp_obj_t) * (1 + n_total));
+    #else
     mp_obj_t *free_args2 = NULL;
     if (n_total > 4) {
         // try to use heap to allocate temporary args array
@@ -61,12 +64,17 @@ mp_obj_t mp_call_method_self_n_kw(mp_obj_t meth, mp_obj_t self, size_t n_args, s
         // (fallback to) use stack to allocate temporary args array
         args2 = alloca(sizeof(mp_obj_t) * (1 + n_total));
     }
+    #endif
     args2[0] = self;
     memcpy(args2 + 1, args, n_total * sizeof(mp_obj_t));
     mp_obj_t res = mp_call_function_n_kw(meth, n_args + 1, n_kw, args2);
+    #if MICROPY_ENABLE_PYSTACK
+    mp_pystack_free(args2);
+    #else
     if (free_args2 != NULL) {
         m_del(mp_obj_t, free_args2, 1 + n_total);
     }
+    #endif
     return res;
 }
 
@@ -81,28 +89,35 @@ STATIC void bound_meth_attr(mp_obj_t self_in, qstr attr, mp_obj_t *dest) {
         // not load attribute
         return;
     }
-    if (attr == MP_QSTR___name__) {
-        mp_obj_bound_meth_t *o = MP_OBJ_TO_PTR(self_in);
-        dest[0] = MP_OBJ_NEW_QSTR(mp_obj_fun_get_name(o->meth));
-    }
+    // Delegate the load to the method object
+    mp_obj_bound_meth_t *self = MP_OBJ_TO_PTR(self_in);
+    mp_load_method_maybe(self->meth, attr, dest);
 }
 #endif
 
-STATIC const mp_obj_type_t mp_type_bound_meth = {
-    { &mp_type_type },
-    .name = MP_QSTR_bound_method,
 #if MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_DETAILED
-    .print = bound_meth_print,
+#define BOUND_METH_TYPE_PRINT print, bound_meth_print,
+#else
+#define BOUND_METH_TYPE_PRINT
 #endif
-    .call = bound_meth_call,
+
 #if MICROPY_PY_FUNCTION_ATTRS
-    .attr = bound_meth_attr,
+#define BOUND_METH_TYPE_ATTR attr, bound_meth_attr,
+#else
+#define BOUND_METH_TYPE_ATTR
 #endif
-};
+
+STATIC MP_DEFINE_CONST_OBJ_TYPE(
+    mp_type_bound_meth,
+    MP_QSTR_bound_method,
+    MP_TYPE_FLAG_NONE,
+    BOUND_METH_TYPE_PRINT
+    BOUND_METH_TYPE_ATTR
+    call, bound_meth_call
+    );
 
 mp_obj_t mp_obj_new_bound_meth(mp_obj_t meth, mp_obj_t self) {
-    mp_obj_bound_meth_t *o = m_new_obj(mp_obj_bound_meth_t);
-    o->base.type = &mp_type_bound_meth;
+    mp_obj_bound_meth_t *o = mp_obj_malloc(mp_obj_bound_meth_t, &mp_type_bound_meth);
     o->meth = meth;
     o->self = self;
     return MP_OBJ_FROM_PTR(o);

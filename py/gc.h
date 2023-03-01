@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * The MIT License (MIT)
  *
@@ -26,12 +26,16 @@
 #ifndef MICROPY_INCLUDED_PY_GC_H
 #define MICROPY_INCLUDED_PY_GC_H
 
-#include <stdint.h>
-
+#include <stdbool.h>
+#include <stddef.h>
 #include "py/mpconfig.h"
-#include "py/misc.h"
 
 void gc_init(void *start, void *end);
+
+#if MICROPY_GC_SPLIT_HEAP
+// Used to add additional memory areas to the heap.
+void gc_add(void *start, void *end);
+#endif
 
 // These lock/unlock functions can be nested.
 // They can be used to prevent the GC from allocating/freeing.
@@ -45,7 +49,14 @@ void gc_collect_start(void);
 void gc_collect_root(void **ptrs, size_t len);
 void gc_collect_end(void);
 
-void *gc_alloc(size_t n_bytes, bool has_finaliser);
+// Use this function to sweep the whole heap and run all finalisers
+void gc_sweep_all(void);
+
+enum {
+    GC_ALLOC_FLAG_HAS_FINALISER = 1,
+};
+
+void *gc_alloc(size_t n_bytes, unsigned int alloc_flags);
 void gc_free(void *ptr); // does not call finaliser
 size_t gc_nbytes(const void *ptr);
 void *gc_realloc(void *ptr, size_t n_bytes, bool allow_move);

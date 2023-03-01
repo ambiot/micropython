@@ -10,10 +10,10 @@ The LED object controls an individual LED (Light Emitting Diode).
 Constructors
 ------------
 
-.. class:: pyb.LED(id)
+.. class:: LED(id)
 
    Create an LED object associated with the given LED:
-   
+
      - ``id`` is the LED number, 1-4.
 
 

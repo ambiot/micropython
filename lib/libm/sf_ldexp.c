@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * These math functions are taken from newlib-nano-2, the newlib/libm/math
  * directory, available from https://github.com/32bitmicro/newlib-nano-2.
@@ -23,7 +23,6 @@
  */
 
 #include "fdlibm.h"
-//#include <errno.h>
 
 #ifdef __STDC__
 	float ldexpf(float value, int exp)

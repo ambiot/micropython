@@ -1,7 +1,8 @@
+# test basic properties of exceptions
+
 print(repr(IndexError()))
 print(str(IndexError()))
 
-print(repr(IndexError("foo")))
 print(str(IndexError("foo")))
 
 a = IndexError(1, "test", [100, 200])
@@ -13,3 +14,6 @@ s = StopIteration()
 print(s.value)
 s = StopIteration(1, 2, 3)
 print(s.value)
+
+print(OSError().errno)
+print(OSError(1, "msg").errno)

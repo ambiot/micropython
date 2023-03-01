@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * The MIT License (MIT)
  *
@@ -29,9 +29,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "py/nlr.h"
 #include "py/parsenum.h"
-#include "py/runtime0.h"
 #include "py/runtime.h"
 
 #if MICROPY_PY_BUILTINS_FLOAT
@@ -54,29 +52,25 @@ typedef struct _mp_obj_float_t {
     mp_float_t value;
 } mp_obj_float_t;
 
-const mp_obj_float_t mp_const_float_e_obj = {{&mp_type_float}, M_E};
-const mp_obj_float_t mp_const_float_pi_obj = {{&mp_type_float}, M_PI};
+const mp_obj_float_t mp_const_float_e_obj = {{&mp_type_float}, (mp_float_t)M_E};
+const mp_obj_float_t mp_const_float_pi_obj = {{&mp_type_float}, (mp_float_t)M_PI};
+#if MICROPY_PY_MATH_CONSTANTS
+#ifndef NAN
+#error NAN macro is not defined
+#endif
+const mp_obj_float_t mp_const_float_tau_obj = {{&mp_type_float}, (mp_float_t)(2.0 * M_PI)};
+const mp_obj_float_t mp_const_float_inf_obj = {{&mp_type_float}, (mp_float_t)INFINITY};
+const mp_obj_float_t mp_const_float_nan_obj = {{&mp_type_float}, (mp_float_t)NAN};
+#endif
 
 #endif
+
+#define MICROPY_FLOAT_ZERO MICROPY_FLOAT_CONST(0.0)
 
 #if MICROPY_FLOAT_HIGH_QUALITY_HASH
 // must return actual integer value if it fits in mp_int_t
 mp_int_t mp_float_hash(mp_float_t src) {
-#if MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_DOUBLE
-typedef uint64_t mp_float_uint_t;
-#elif MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_FLOAT
-typedef uint32_t mp_float_uint_t;
-#endif
-    union {
-        mp_float_t f;
-        #if MP_ENDIANNESS_LITTLE
-        struct { mp_float_uint_t frc:MP_FLOAT_FRAC_BITS, exp:MP_FLOAT_EXP_BITS, sgn:1; } p;
-        #else
-        struct { mp_float_uint_t sgn:1, exp:MP_FLOAT_EXP_BITS, frc:MP_FLOAT_FRAC_BITS; } p;
-        #endif
-        mp_float_uint_t i;
-    } u = {.f = src};
-
+    mp_float_union_t u = {.f = src};
     mp_int_t val;
     const int adj_exp = (int)u.p.exp - MP_FLOAT_EXP_BIAS;
     if (adj_exp < 0) {
@@ -90,8 +84,8 @@ typedef uint32_t mp_float_uint_t;
         if (adj_exp <= MP_FLOAT_FRAC_BITS) {
             // number may have a fraction; xor the integer part with the fractional part
             val = (frc >> (MP_FLOAT_FRAC_BITS - adj_exp))
-                ^ (frc & ((1 << (MP_FLOAT_FRAC_BITS - adj_exp)) - 1));
-        } else if ((unsigned int)adj_exp < BITS_PER_BYTE * sizeof(mp_int_t) - 1) {
+                ^ (frc & (((mp_float_uint_t)1 << (MP_FLOAT_FRAC_BITS - adj_exp)) - 1));
+        } else if ((unsigned int)adj_exp < MP_BITS_PER_BYTE * sizeof(mp_int_t) - 1) {
             // the number is a (big) whole integer and will fit in val's signed-width
             val = (mp_int_t)frc << (adj_exp - MP_FLOAT_FRAC_BITS);
         } else {
@@ -101,7 +95,7 @@ typedef uint32_t mp_float_uint_t;
     }
 
     if (u.p.sgn) {
-        val = -val;
+        val = -(mp_uint_t)val;
     }
 
     return val;
@@ -111,17 +105,17 @@ typedef uint32_t mp_float_uint_t;
 STATIC void float_print(const mp_print_t *print, mp_obj_t o_in, mp_print_kind_t kind) {
     (void)kind;
     mp_float_t o_val = mp_obj_float_get(o_in);
-#if MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_FLOAT
+    #if MICROPY_FLOAT_IMPL == MICROPY_FLOAT_IMPL_FLOAT
     char buf[16];
     #if MICROPY_OBJ_REPR == MICROPY_OBJ_REPR_C
     const int precision = 6;
     #else
     const int precision = 7;
     #endif
-#else
+    #else
     char buf[32];
     const int precision = 16;
-#endif
+    #endif
     mp_format_float(o_val, buf, sizeof(buf), 'g', precision, '\0');
     mp_print_str(print, buf);
     if (strchr(buf, '.') == NULL && strchr(buf, 'e') == NULL && strchr(buf, 'n') == NULL) {
@@ -139,12 +133,11 @@ STATIC mp_obj_t float_make_new(const mp_obj_type_t *type_in, size_t n_args, size
             return mp_obj_new_float(0);
 
         case 1:
-        default:
-            if (MP_OBJ_IS_STR(args[0])) {
-                // a string, parse it
-                size_t l;
-                const char *s = mp_obj_str_get_data(args[0], &l);
-                return mp_parse_num_decimal(s, l, false, false, NULL);
+        default: {
+            mp_buffer_info_t bufinfo;
+            if (mp_get_buffer(args[0], &bufinfo, MP_BUFFER_READ)) {
+                // a textual representation, parse it
+                return mp_parse_num_float(bufinfo.buf, bufinfo.len, false, NULL);
             } else if (mp_obj_is_float(args[0])) {
                 // a float, just return it
                 return args[0];
@@ -152,45 +145,56 @@ STATIC mp_obj_t float_make_new(const mp_obj_type_t *type_in, size_t n_args, size
                 // something else, try to cast it to a float
                 return mp_obj_new_float(mp_obj_get_float(args[0]));
             }
+        }
     }
 }
 
-STATIC mp_obj_t float_unary_op(mp_uint_t op, mp_obj_t o_in) {
+STATIC mp_obj_t float_unary_op(mp_unary_op_t op, mp_obj_t o_in) {
     mp_float_t val = mp_obj_float_get(o_in);
     switch (op) {
-        case MP_UNARY_OP_BOOL: return mp_obj_new_bool(val != 0);
-        case MP_UNARY_OP_HASH: return MP_OBJ_NEW_SMALL_INT(mp_float_hash(val));
-        case MP_UNARY_OP_POSITIVE: return o_in;
-        case MP_UNARY_OP_NEGATIVE: return mp_obj_new_float(-val);
-        default: return MP_OBJ_NULL; // op not supported
+        case MP_UNARY_OP_BOOL:
+            return mp_obj_new_bool(val != 0);
+        case MP_UNARY_OP_HASH:
+            return MP_OBJ_NEW_SMALL_INT(mp_float_hash(val));
+        case MP_UNARY_OP_POSITIVE:
+            return o_in;
+        case MP_UNARY_OP_NEGATIVE:
+            return mp_obj_new_float(-val);
+        case MP_UNARY_OP_ABS: {
+            if (signbit(val)) {
+                return mp_obj_new_float(-val);
+            } else {
+                return o_in;
+            }
+        }
+        default:
+            return MP_OBJ_NULL;      // op not supported
     }
 }
 
-STATIC mp_obj_t float_binary_op(mp_uint_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
+STATIC mp_obj_t float_binary_op(mp_binary_op_t op, mp_obj_t lhs_in, mp_obj_t rhs_in) {
     mp_float_t lhs_val = mp_obj_float_get(lhs_in);
-#if MICROPY_PY_BUILTINS_COMPLEX
-    if (MP_OBJ_IS_TYPE(rhs_in, &mp_type_complex)) {
+    #if MICROPY_PY_BUILTINS_COMPLEX
+    if (mp_obj_is_type(rhs_in, &mp_type_complex)) {
         return mp_obj_complex_binary_op(op, lhs_val, 0, rhs_in);
-    } else
-#endif
-    {
-        return mp_obj_float_binary_op(op, lhs_val, rhs_in);
     }
+    #endif
+    return mp_obj_float_binary_op(op, lhs_val, rhs_in);
 }
 
-const mp_obj_type_t mp_type_float = {
-    { &mp_type_type },
-    .name = MP_QSTR_float,
-    .print = float_print,
-    .make_new = float_make_new,
-    .unary_op = float_unary_op,
-    .binary_op = float_binary_op,
-};
+MP_DEFINE_CONST_OBJ_TYPE(
+    mp_type_float, MP_QSTR_float, MP_TYPE_FLAG_EQ_NOT_REFLEXIVE | MP_TYPE_FLAG_EQ_CHECKS_OTHER_TYPE,
+    make_new, float_make_new,
+    print, float_print,
+    unary_op, float_unary_op,
+    binary_op, float_binary_op
+    );
 
 #if MICROPY_OBJ_REPR != MICROPY_OBJ_REPR_C && MICROPY_OBJ_REPR != MICROPY_OBJ_REPR_D
 
 mp_obj_t mp_obj_new_float(mp_float_t value) {
-    mp_obj_float_t *o = m_new(mp_obj_float_t, 1);
+    // Don't use mp_obj_malloc here to avoid extra function call overhead.
+    mp_obj_float_t *o = m_new_obj(mp_obj_float_t);
     o->base.type = &mp_type_float;
     o->value = value;
     return MP_OBJ_FROM_PTR(o);
@@ -213,24 +217,24 @@ STATIC void mp_obj_float_divmod(mp_float_t *x, mp_float_t *y) {
     mp_float_t div = (*x - mod) / *y;
 
     // Python specs require that mod has same sign as second operand
-    if (mod == 0.0) {
-        mod = MICROPY_FLOAT_C_FUN(copysign)(0.0, *y);
+    if (mod == MICROPY_FLOAT_ZERO) {
+        mod = MICROPY_FLOAT_C_FUN(copysign)(MICROPY_FLOAT_ZERO, *y);
     } else {
-        if ((mod < 0.0) != (*y < 0.0)) {
+        if ((mod < MICROPY_FLOAT_ZERO) != (*y < MICROPY_FLOAT_ZERO)) {
             mod += *y;
-            div -= 1.0;
+            div -= MICROPY_FLOAT_CONST(1.0);
         }
     }
 
     mp_float_t floordiv;
-    if (div == 0.0) {
+    if (div == MICROPY_FLOAT_ZERO) {
         // if division is zero, take the correct sign of zero
-        floordiv = MICROPY_FLOAT_C_FUN(copysign)(0.0, *x / *y);
+        floordiv = MICROPY_FLOAT_C_FUN(copysign)(MICROPY_FLOAT_ZERO, *x / *y);
     } else {
         // Python specs require that x == (x//y)*y + (x%y)
         floordiv = MICROPY_FLOAT_C_FUN(floor)(div);
-        if (div - floordiv > 0.5) {
-            floordiv += 1.0;
+        if (div - floordiv > MICROPY_FLOAT_CONST(0.5)) {
+            floordiv += MICROPY_FLOAT_CONST(1.0);
         }
     }
 
@@ -239,20 +243,30 @@ STATIC void mp_obj_float_divmod(mp_float_t *x, mp_float_t *y) {
     *y = mod;
 }
 
-mp_obj_t mp_obj_float_binary_op(mp_uint_t op, mp_float_t lhs_val, mp_obj_t rhs_in) {
-    mp_float_t rhs_val = mp_obj_get_float(rhs_in); // can be any type, this function will convert to float (if possible)
+mp_obj_t mp_obj_float_binary_op(mp_binary_op_t op, mp_float_t lhs_val, mp_obj_t rhs_in) {
+    mp_float_t rhs_val;
+    if (!mp_obj_get_float_maybe(rhs_in, &rhs_val)) {
+        return MP_OBJ_NULL; // op not supported
+    }
+
     switch (op) {
         case MP_BINARY_OP_ADD:
-        case MP_BINARY_OP_INPLACE_ADD: lhs_val += rhs_val; break;
+        case MP_BINARY_OP_INPLACE_ADD:
+            lhs_val += rhs_val;
+            break;
         case MP_BINARY_OP_SUBTRACT:
-        case MP_BINARY_OP_INPLACE_SUBTRACT: lhs_val -= rhs_val; break;
+        case MP_BINARY_OP_INPLACE_SUBTRACT:
+            lhs_val -= rhs_val;
+            break;
         case MP_BINARY_OP_MULTIPLY:
-        case MP_BINARY_OP_INPLACE_MULTIPLY: lhs_val *= rhs_val; break;
+        case MP_BINARY_OP_INPLACE_MULTIPLY:
+            lhs_val *= rhs_val;
+            break;
         case MP_BINARY_OP_FLOOR_DIVIDE:
         case MP_BINARY_OP_INPLACE_FLOOR_DIVIDE:
             if (rhs_val == 0) {
-                zero_division_error:
-                mp_raise_msg(&mp_type_ZeroDivisionError, "division by zero");
+            zero_division_error:
+                mp_raise_msg(&mp_type_ZeroDivisionError, MP_ERROR_TEXT("divide by zero"));
             }
             // Python specs require that x == (x//y)*y + (x%y) so we must
             // call divmod to compute the correct floor division, which
@@ -268,24 +282,37 @@ mp_obj_t mp_obj_float_binary_op(mp_uint_t op, mp_float_t lhs_val, mp_obj_t rhs_i
             break;
         case MP_BINARY_OP_MODULO:
         case MP_BINARY_OP_INPLACE_MODULO:
-            if (rhs_val == 0) {
+            if (rhs_val == MICROPY_FLOAT_ZERO) {
                 goto zero_division_error;
             }
             lhs_val = MICROPY_FLOAT_C_FUN(fmod)(lhs_val, rhs_val);
             // Python specs require that mod has same sign as second operand
-            if (lhs_val == 0.0) {
+            if (lhs_val == MICROPY_FLOAT_ZERO) {
                 lhs_val = MICROPY_FLOAT_C_FUN(copysign)(0.0, rhs_val);
             } else {
-                if ((lhs_val < 0.0) != (rhs_val < 0.0)) {
+                if ((lhs_val < MICROPY_FLOAT_ZERO) != (rhs_val < MICROPY_FLOAT_ZERO)) {
                     lhs_val += rhs_val;
                 }
             }
             break;
         case MP_BINARY_OP_POWER:
         case MP_BINARY_OP_INPLACE_POWER:
-            if (lhs_val == 0 && rhs_val < 0) {
+            if (lhs_val == 0 && rhs_val < 0 && !isinf(rhs_val)) {
                 goto zero_division_error;
             }
+            if (lhs_val < 0 && rhs_val != MICROPY_FLOAT_C_FUN(floor)(rhs_val) && !isnan(rhs_val)) {
+                #if MICROPY_PY_BUILTINS_COMPLEX
+                return mp_obj_complex_binary_op(MP_BINARY_OP_POWER, lhs_val, 0, rhs_in);
+                #else
+                mp_raise_ValueError(MP_ERROR_TEXT("complex values not supported"));
+                #endif
+            }
+            #if MICROPY_PY_MATH_POW_FIX_NAN // Also see modmath.c.
+            if (lhs_val == MICROPY_FLOAT_CONST(1.0) || rhs_val == MICROPY_FLOAT_CONST(0.0)) {
+                lhs_val = MICROPY_FLOAT_CONST(1.0);
+                break;
+            }
+            #endif
             lhs_val = MICROPY_FLOAT_C_FUN(pow)(lhs_val, rhs_val);
             break;
         case MP_BINARY_OP_DIVMOD: {
@@ -299,11 +326,16 @@ mp_obj_t mp_obj_float_binary_op(mp_uint_t op, mp_float_t lhs_val, mp_obj_t rhs_i
             };
             return mp_obj_new_tuple(2, tuple);
         }
-        case MP_BINARY_OP_LESS: return mp_obj_new_bool(lhs_val < rhs_val);
-        case MP_BINARY_OP_MORE: return mp_obj_new_bool(lhs_val > rhs_val);
-        case MP_BINARY_OP_EQUAL: return mp_obj_new_bool(lhs_val == rhs_val);
-        case MP_BINARY_OP_LESS_EQUAL: return mp_obj_new_bool(lhs_val <= rhs_val);
-        case MP_BINARY_OP_MORE_EQUAL: return mp_obj_new_bool(lhs_val >= rhs_val);
+        case MP_BINARY_OP_LESS:
+            return mp_obj_new_bool(lhs_val < rhs_val);
+        case MP_BINARY_OP_MORE:
+            return mp_obj_new_bool(lhs_val > rhs_val);
+        case MP_BINARY_OP_EQUAL:
+            return mp_obj_new_bool(lhs_val == rhs_val);
+        case MP_BINARY_OP_LESS_EQUAL:
+            return mp_obj_new_bool(lhs_val <= rhs_val);
+        case MP_BINARY_OP_MORE_EQUAL:
+            return mp_obj_new_bool(lhs_val >= rhs_val);
 
         default:
             return MP_OBJ_NULL; // op not supported

@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * The MIT License (MIT)
  *
@@ -27,7 +27,7 @@
 #define MICROPY_INCLUDED_PY_RUNTIME_H
 
 #include "py/mpstate.h"
-#include "py/obj.h"
+#include "py/pystack.h"
 
 typedef enum {
     MP_VM_RETURN_NORMAL,
@@ -57,36 +57,58 @@ typedef struct _mp_arg_t {
     mp_arg_val_t defval;
 } mp_arg_t;
 
-// defined in objtype.c
-extern const qstr mp_unary_op_method_name[];
-extern const qstr mp_binary_op_method_name[];
+struct _mp_sched_node_t;
+
+typedef void (*mp_sched_callback_t)(struct _mp_sched_node_t *);
+
+typedef struct _mp_sched_node_t {
+    mp_sched_callback_t callback;
+    struct _mp_sched_node_t *next;
+} mp_sched_node_t;
+
+// Tables mapping operator enums to qstrs, defined in objtype.c
+extern const byte mp_unary_op_method_name[];
+extern const byte mp_binary_op_method_name[];
 
 void mp_init(void);
 void mp_deinit(void);
 
-void mp_handle_pending(void);
-void mp_handle_pending_tail(mp_uint_t atomic_state);
+void mp_sched_exception(mp_obj_t exc);
+void mp_sched_keyboard_interrupt(void);
+void mp_handle_pending(bool raise_exc);
 
 #if MICROPY_ENABLE_SCHEDULER
 void mp_sched_lock(void);
 void mp_sched_unlock(void);
-static inline unsigned int mp_sched_num_pending(void) { return MP_STATE_VM(sched_sp); }
+#define mp_sched_num_pending() (MP_STATE_VM(sched_len))
 bool mp_sched_schedule(mp_obj_t function, mp_obj_t arg);
+bool mp_sched_schedule_node(mp_sched_node_t *node, mp_sched_callback_t callback);
 #endif
 
 // extra printing method specifically for mp_obj_t's which are integral type
 int mp_print_mp_int(const mp_print_t *print, mp_obj_t x, int base, int base_char, int flags, char fill, int width, int prec);
 
-void mp_arg_check_num(size_t n_args, size_t n_kw, size_t n_args_min, size_t n_args_max, bool takes_kw);
+void mp_arg_check_num_sig(size_t n_args, size_t n_kw, uint32_t sig);
+static inline void mp_arg_check_num(size_t n_args, size_t n_kw, size_t n_args_min, size_t n_args_max, bool takes_kw) {
+    mp_arg_check_num_sig(n_args, n_kw, MP_OBJ_FUN_MAKE_SIG(n_args_min, n_args_max, takes_kw));
+}
 void mp_arg_parse_all(size_t n_pos, const mp_obj_t *pos, mp_map_t *kws, size_t n_allowed, const mp_arg_t *allowed, mp_arg_val_t *out_vals);
 void mp_arg_parse_all_kw_array(size_t n_pos, size_t n_kw, const mp_obj_t *args, size_t n_allowed, const mp_arg_t *allowed, mp_arg_val_t *out_vals);
 NORETURN void mp_arg_error_terse_mismatch(void);
 NORETURN void mp_arg_error_unimpl_kw(void);
 
-static inline mp_obj_dict_t *mp_locals_get(void) { return MP_STATE_THREAD(dict_locals); }
-static inline void mp_locals_set(mp_obj_dict_t *d) { MP_STATE_THREAD(dict_locals) = d; }
-static inline mp_obj_dict_t *mp_globals_get(void) { return MP_STATE_THREAD(dict_globals); }
-static inline void mp_globals_set(mp_obj_dict_t *d) { MP_STATE_THREAD(dict_globals) = d; }
+static inline mp_obj_dict_t *mp_locals_get(void) {
+    return MP_STATE_THREAD(dict_locals);
+}
+static inline void mp_locals_set(mp_obj_dict_t *d) {
+    MP_STATE_THREAD(dict_locals) = d;
+}
+static inline mp_obj_dict_t *mp_globals_get(void) {
+    return MP_STATE_THREAD(dict_globals);
+}
+static inline void mp_globals_set(mp_obj_dict_t *d) {
+    MP_STATE_THREAD(dict_globals) = d;
+}
 
 mp_obj_t mp_load_name(qstr qst);
 mp_obj_t mp_load_global(qstr qst);
@@ -96,8 +118,8 @@ void mp_store_global(qstr qst, mp_obj_t obj);
 void mp_delete_name(qstr qst);
 void mp_delete_global(qstr qst);
 
-mp_obj_t mp_unary_op(mp_uint_t op, mp_obj_t arg);
-mp_obj_t mp_binary_op(mp_uint_t op, mp_obj_t lhs, mp_obj_t rhs);
+mp_obj_t mp_unary_op(mp_unary_op_t op, mp_obj_t arg);
+mp_obj_t mp_binary_op(mp_binary_op_t op, mp_obj_t lhs, mp_obj_t rhs);
 
 mp_obj_t mp_call_function_0(mp_obj_t fun);
 mp_obj_t mp_call_function_1(mp_obj_t fun, mp_obj_t arg);
@@ -107,8 +129,9 @@ mp_obj_t mp_call_method_n_kw(size_t n_args, size_t n_kw, const mp_obj_t *args);
 mp_obj_t mp_call_method_n_kw_var(bool have_self, size_t n_args_n_kw, const mp_obj_t *args);
 mp_obj_t mp_call_method_self_n_kw(mp_obj_t meth, mp_obj_t self, size_t n_args, size_t n_kw, const mp_obj_t *args);
 // Call function and catch/dump exception - for Python callbacks from C code
-void mp_call_function_1_protected(mp_obj_t fun, mp_obj_t arg);
-void mp_call_function_2_protected(mp_obj_t fun, mp_obj_t arg1, mp_obj_t arg2);
+// (return MP_OBJ_NULL in case of exception).
+mp_obj_t mp_call_function_1_protected(mp_obj_t fun, mp_obj_t arg);
+mp_obj_t mp_call_function_2_protected(mp_obj_t fun, mp_obj_t arg1, mp_obj_t arg2);
 
 typedef struct _mp_call_args_t {
     mp_obj_t fun;
@@ -131,6 +154,7 @@ mp_obj_t mp_load_attr(mp_obj_t base, qstr attr);
 void mp_convert_member_lookup(mp_obj_t obj, const mp_obj_type_t *type, mp_obj_t member, mp_obj_t *dest);
 void mp_load_method(mp_obj_t base, qstr attr, mp_obj_t *dest);
 void mp_load_method_maybe(mp_obj_t base, qstr attr, mp_obj_t *dest);
+void mp_load_method_protected(mp_obj_t obj, qstr attr, mp_obj_t *dest, bool catch_all_exc);
 void mp_load_super_method(qstr attr, mp_obj_t *dest);
 void mp_store_attr(mp_obj_t base, qstr attr, mp_obj_t val);
 
@@ -139,19 +163,41 @@ mp_obj_t mp_iternext_allow_raise(mp_obj_t o); // may return MP_OBJ_STOP_ITERATIO
 mp_obj_t mp_iternext(mp_obj_t o); // will always return MP_OBJ_STOP_ITERATION instead of raising StopIteration(...)
 mp_vm_return_kind_t mp_resume(mp_obj_t self_in, mp_obj_t send_value, mp_obj_t throw_value, mp_obj_t *ret_val);
 
+static inline mp_obj_t mp_make_stop_iteration(mp_obj_t o) {
+    MP_STATE_THREAD(stop_iteration_arg) = o;
+    return MP_OBJ_STOP_ITERATION;
+}
+
 mp_obj_t mp_make_raise_obj(mp_obj_t o);
 
 mp_obj_t mp_import_name(qstr name, mp_obj_t fromlist, mp_obj_t level);
 mp_obj_t mp_import_from(mp_obj_t module, qstr name);
 void mp_import_all(mp_obj_t module);
 
-NORETURN void mp_raise_msg(const mp_obj_type_t *exc_type, const char *msg);
-//NORETURN void nlr_raise_msg_varg(const mp_obj_type_t *exc_type, const char *fmt, ...);
-NORETURN void mp_raise_ValueError(const char *msg);
-NORETURN void mp_raise_TypeError(const char *msg);
+#if MICROPY_ERROR_REPORTING == MICROPY_ERROR_REPORTING_NONE
+NORETURN void mp_raise_type(const mp_obj_type_t *exc_type);
+NORETURN void mp_raise_ValueError_no_msg(void);
+NORETURN void mp_raise_TypeError_no_msg(void);
+NORETURN void mp_raise_NotImplementedError_no_msg(void);
+#define mp_raise_msg(exc_type, msg) mp_raise_type(exc_type)
+#define mp_raise_msg_varg(exc_type, ...) mp_raise_type(exc_type)
+#define mp_raise_ValueError(msg) mp_raise_ValueError_no_msg()
+#define mp_raise_TypeError(msg) mp_raise_TypeError_no_msg()
+#define mp_raise_NotImplementedError(msg) mp_raise_NotImplementedError_no_msg()
+#else
+#define mp_raise_type(exc_type) mp_raise_msg(exc_type, NULL)
+NORETURN void mp_raise_msg(const mp_obj_type_t *exc_type, mp_rom_error_text_t msg);
+NORETURN void mp_raise_msg_varg(const mp_obj_type_t *exc_type, mp_rom_error_text_t fmt, ...);
+NORETURN void mp_raise_ValueError(mp_rom_error_text_t msg);
+NORETURN void mp_raise_TypeError(mp_rom_error_text_t msg);
+NORETURN void mp_raise_NotImplementedError(mp_rom_error_text_t msg);
+#endif
+
+NORETURN void mp_raise_type_arg(const mp_obj_type_t *exc_type, mp_obj_t arg);
+NORETURN void mp_raise_StopIteration(mp_obj_t arg);
 NORETURN void mp_raise_OSError(int errno_);
-NORETURN void mp_not_implemented(const char *msg); // Raise NotImplementedError with given message
-NORETURN void mp_exc_recursion_depth(void);
+NORETURN void mp_raise_OSError_with_filename(int errno_, const char *filename);
+NORETURN void mp_raise_recursion_depth(void);
 
 #if MICROPY_BUILTIN_METHOD_CHECK_SELF_ARG
 #undef mp_check_self
@@ -164,18 +210,19 @@ NORETURN void mp_exc_recursion_depth(void);
 #endif
 
 // helper functions for native/viper code
-mp_uint_t mp_convert_obj_to_native(mp_obj_t obj, mp_uint_t type);
-mp_obj_t mp_convert_native_to_obj(mp_uint_t val, mp_uint_t type);
-mp_obj_t mp_native_call_function_n_kw(mp_obj_t fun_in, size_t n_args_kw, const mp_obj_t *args);
-void mp_native_raise(mp_obj_t o);
+int mp_native_type_from_qstr(qstr qst);
+mp_uint_t mp_native_from_obj(mp_obj_t obj, mp_uint_t type);
+mp_obj_t mp_native_to_obj(mp_uint_t val, mp_uint_t type);
 
 #define mp_sys_path (MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_sys_path_obj)))
 #define mp_sys_argv (MP_OBJ_FROM_PTR(&MP_STATE_VM(mp_sys_argv_obj)))
 
 #if MICROPY_WARNINGS
-void mp_warning(const char *msg, ...);
+#ifndef mp_warning
+void mp_warning(const char *category, const char *msg, ...);
+#endif
 #else
-#define mp_warning(msg, ...)
+#define mp_warning(...)
 #endif
 
 #endif // MICROPY_INCLUDED_PY_RUNTIME_H

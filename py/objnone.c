@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * The MIT License (MIT)
  *
@@ -26,13 +26,13 @@
 
 #include <stdlib.h>
 
-#include "py/nlr.h"
 #include "py/obj.h"
-#include "py/runtime0.h"
 
+#if !MICROPY_OBJ_IMMEDIATE_OBJS
 typedef struct _mp_obj_none_t {
     mp_obj_base_t base;
 } mp_obj_none_t;
+#endif
 
 STATIC void none_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)self_in;
@@ -43,11 +43,14 @@ STATIC void none_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_
     }
 }
 
-const mp_obj_type_t mp_type_NoneType = {
-    { &mp_type_type },
-    .name = MP_QSTR_NoneType,
-    .print = none_print,
-    .unary_op = mp_generic_unary_op,
-};
+MP_DEFINE_CONST_OBJ_TYPE(
+    mp_type_NoneType,
+    MP_QSTR_NoneType,
+    MP_TYPE_FLAG_NONE,
+    print, none_print,
+    unary_op, mp_generic_unary_op
+    );
 
+#if !MICROPY_OBJ_IMMEDIATE_OBJS
 const mp_obj_none_t mp_const_none_obj = {{&mp_type_NoneType}};
+#endif

@@ -8,6 +8,16 @@ except ValueError:
     print("ValueError")
 
 try:
+    i @ 0
+except TypeError:
+    print("TypeError")
+
+try:
+    i @= 0
+except TypeError:
+    print("TypeError")
+
+try:
     len(i)
 except TypeError:
     print("TypeError")
@@ -17,9 +27,9 @@ try:
 except TypeError:
     print("TypeError")
 
-# overflow because rhs of >> is being converted to machine int
+# overflow because arg of bytearray is being converted to machine int
 try:
-    1 >> i
+    bytearray(i)
 except OverflowError:
     print('OverflowError')
 

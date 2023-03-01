@@ -1,10 +1,6 @@
 try:
     import uerrno
-    try:
-        import uos_vfs as uos
-        open = uos.vfs_open
-    except ImportError:
-        import uos
+    import uos
 except ImportError:
     print("SKIP")
     raise SystemExit
@@ -17,40 +13,39 @@ except AttributeError:
 
 
 class RAMFS:
-
     SEC_SIZE = 512
 
     def __init__(self, blocks):
         self.data = bytearray(blocks * self.SEC_SIZE)
 
     def readblocks(self, n, buf):
-        #print("readblocks(%s, %x(%d))" % (n, id(buf), len(buf)))
+        # print("readblocks(%s, %x(%d))" % (n, id(buf), len(buf)))
         for i in range(len(buf)):
             buf[i] = self.data[n * self.SEC_SIZE + i]
 
     def writeblocks(self, n, buf):
-        #print("writeblocks(%s, %x)" % (n, id(buf)))
+        # print("writeblocks(%s, %x)" % (n, id(buf)))
         for i in range(len(buf)):
             self.data[n * self.SEC_SIZE + i] = buf[i]
 
     def ioctl(self, op, arg):
-        #print("ioctl(%d, %r)" % (op, arg))
-        if op == 4:  # BP_IOCTL_SEC_COUNT
+        # print("ioctl(%d, %r)" % (op, arg))
+        if op == 4:  # MP_BLOCKDEV_IOCTL_BLOCK_COUNT
             return len(self.data) // self.SEC_SIZE
-        if op == 5:  # BP_IOCTL_SEC_SIZE
+        if op == 5:  # MP_BLOCKDEV_IOCTL_BLOCK_SIZE
             return self.SEC_SIZE
 
 
 try:
     bdev = RAMFS(50)
+    uos.VfsFat.mkfs(bdev)
 except MemoryError:
     print("SKIP")
     raise SystemExit
 
-uos.VfsFat.mkfs(bdev)
 vfs = uos.VfsFat(bdev)
-uos.mount(vfs, '/ramdisk')
-uos.chdir('/ramdisk')
+uos.mount(vfs, "/ramdisk")
+uos.chdir("/ramdisk")
 
 # file IO
 f = open("foo_file.txt", "w")
@@ -58,26 +53,26 @@ print(str(f)[:17], str(f)[-1:])
 f.write("hello!")
 f.flush()
 f.close()
-f.close() # allowed
+f.close()  # allowed
 try:
     f.write("world!")
 except OSError as e:
-    print(e.args[0] == uerrno.EINVAL)
+    print(e.errno == uerrno.EINVAL)
 
 try:
     f.read()
 except OSError as e:
-    print(e.args[0] == uerrno.EINVAL)
+    print(e.errno == uerrno.EINVAL)
 
 try:
     f.flush()
 except OSError as e:
-    print(e.args[0] == uerrno.EINVAL)
+    print(e.errno == uerrno.EINVAL)
 
 try:
     open("foo_file.txt", "x")
 except OSError as e:
-    print(e.args[0] == uerrno.EEXIST)
+    print(e.errno == uerrno.EEXIST)
 
 with open("foo_file.txt", "a") as f:
     f.write("world!")
@@ -86,23 +81,21 @@ with open("foo_file.txt") as f2:
     print(f2.read())
     print(f2.tell())
 
-    f2.seek(0, 0) # SEEK_SET
+    f2.seek(0, 0)  # SEEK_SET
     print(f2.read(1))
 
-    f2.seek(0, 1) # SEEK_CUR
+    f2.seek(0, 1)  # SEEK_CUR
     print(f2.read(1))
-    try:
-        f2.seek(1, 1) # SEEK_END
-    except OSError as e:
-        print(e.args[0] == uerrno.EOPNOTSUPP)
+    f2.seek(2, 1)  # SEEK_CUR
+    print(f2.read(1))
 
-    f2.seek(-2, 2) # SEEK_END
+    f2.seek(-2, 2)  # SEEK_END
     print(f2.read(1))
 
 # using constructor of FileIO type to open a file
 # no longer working with new VFS sub-system
-#FileIO = type(f)
-#with FileIO("/ramdisk/foo_file.txt") as f:
+# FileIO = type(f)
+# with FileIO("/ramdisk/foo_file.txt") as f:
 #    print(f.read())
 
 # dirs
@@ -111,7 +104,7 @@ vfs.mkdir("foo_dir")
 try:
     vfs.rmdir("foo_file.txt")
 except OSError as e:
-    print(e.args[0] == 20) # uerrno.ENOTDIR
+    print(e.errno == 20)  # uerrno.ENOTDIR
 
 vfs.remove("foo_file.txt")
 print(list(vfs.ilistdir()))

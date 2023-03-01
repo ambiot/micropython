@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * These math functions are taken from newlib-nano-2, the newlib/libm/math
  * directory, available from https://github.com/32bitmicro/newlib-nano-2.
@@ -35,6 +35,10 @@
 {
         float y;
 	int local_signgam;
+	if (!isfinite(x)) {
+	  /* special cases: tgammaf(nan)=nan, tgammaf(inf)=inf, tgammaf(-inf)=nan */
+	  return x + INFINITY;
+	}
 	y = expf(__ieee754_lgammaf_r(x,&local_signgam));
 	if (local_signgam < 0) y = -y;
 #ifdef _IEEE_LIBM

@@ -48,7 +48,7 @@ MP_DEFINE_CONST_FUN_OBJ_1(mp_utime_sleep_obj, time_sleep);
 
 STATIC mp_obj_t time_sleep_ms(mp_obj_t arg) {
     mp_int_t ms = mp_obj_get_int(arg);
-    if (ms > 0) {
+    if (ms >= 0) {
         mp_hal_delay_ms(ms);
     }
     return mp_const_none;
@@ -86,7 +86,7 @@ STATIC mp_obj_t time_ticks_diff(mp_obj_t end_in, mp_obj_t start_in) {
     // Optimized formula avoiding if conditions. We adjust difference "forward",
     // wrap it around and adjust back.
     mp_int_t diff = ((end - start + MICROPY_PY_UTIME_TICKS_PERIOD / 2) & (MICROPY_PY_UTIME_TICKS_PERIOD - 1))
-                   - MICROPY_PY_UTIME_TICKS_PERIOD / 2;
+        - MICROPY_PY_UTIME_TICKS_PERIOD / 2;
     return MP_OBJ_NEW_SMALL_INT(diff);
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_utime_ticks_diff_obj, time_ticks_diff);
@@ -95,8 +95,27 @@ STATIC mp_obj_t time_ticks_add(mp_obj_t ticks_in, mp_obj_t delta_in) {
     // we assume that first argument come from ticks_xx so is small int
     mp_uint_t ticks = MP_OBJ_SMALL_INT_VALUE(ticks_in);
     mp_uint_t delta = mp_obj_get_int(delta_in);
+
+    // Check that delta does not overflow the range that ticks_diff can handle.
+    // This ensures the following:
+    //  - ticks_diff(ticks_add(T, delta), T) == delta
+    //  - ticks_diff(T, ticks_add(T, delta)) == -delta
+    // The latter requires excluding delta=-TICKS_PERIOD/2.
+    //
+    // This unsigned comparison is equivalent to a signed comparison of:
+    //   delta <= -TICKS_PERIOD/2 || delta >= TICKS_PERIOD/2
+    if (delta + MICROPY_PY_UTIME_TICKS_PERIOD / 2 - 1 >= MICROPY_PY_UTIME_TICKS_PERIOD - 1) {
+        mp_raise_msg(&mp_type_OverflowError, MP_ERROR_TEXT("ticks interval overflow"));
+    }
+
     return MP_OBJ_NEW_SMALL_INT((ticks + delta) & (MICROPY_PY_UTIME_TICKS_PERIOD - 1));
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mp_utime_ticks_add_obj, time_ticks_add);
+
+// Returns the number of nanoseconds since the Epoch, as an integer.
+STATIC mp_obj_t time_time_ns(void) {
+    return mp_obj_new_int_from_ull(mp_hal_time_ns());
+}
+MP_DEFINE_CONST_FUN_OBJ_0(mp_utime_time_ns_obj, time_time_ns);
 
 #endif // MICROPY_PY_UTIME_MP_HAL

@@ -1,3 +1,5 @@
+.. _wipy_general:
+
 General information about the WiPy
 ==================================
 
@@ -38,7 +40,7 @@ Telnet REPL
 
 Linux stock telnet works like a charm (also on OSX), but other tools like putty
 work quite well too. The default credentials are: **user:** ``micro``, **password:** ``python``.
-See :ref:`network.server <network.server>` for info on how to change the defaults.
+See :class:`network.Server` for info on how to change the defaults.
 For instance, on a linux shell (when connected to the WiPy in AP mode)::
 
    $ telnet 192.168.1.1
@@ -60,7 +62,7 @@ Open your FTP client of choice and connect to:
 
 **url:** ``ftp://192.168.1.1``, **user:** ``micro``, **password:** ``python``
 
-See :ref:`network.server <network.server>` for info on how to change the defaults.
+See :class:`network.Server` for info on how to change the defaults.
 The recommended clients are: Linux stock FTP (also in OSX), Filezilla and FireFTP.
 For example, on a linux shell::
 
@@ -176,7 +178,7 @@ Details on sleep modes
 * ``machine.idle()``: Power consumption: ~12mA (in WLAN STA mode). Wake sources:
   any hardware interrupt (including systick with period of 1ms), no special
   configuration required.
-* ``machine.sleep()``: 950uA (in WLAN STA mode). Wake sources are ``Pin``, ``RTC``
+* ``machine.lightsleep()``: 950uA (in WLAN STA mode). Wake sources are ``Pin``, ``RTC``
   and ``WLAN``
 * ``machine.deepsleep()``: ~350uA. Wake sources are ``Pin`` and ``RTC``.
 
@@ -294,8 +296,8 @@ and put it in '/flash/cert/'. Then do::
   ss = ssl.wrap_socket(s, cert_reqs=ssl.CERT_REQUIRED, ca_certs='/flash/cert/ca.pem')
   ss.connect(socket.getaddrinfo('cloud.blynk.cc', 8441)[0][-1])
 
-Incompatibilities in uhashlib module
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Incompatibilities in hashlib module
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Due to hardware implementation details of the WiPy, data must be buffered before being
 digested, which would make it impossible to calculate the hash of big blocks of data that
@@ -308,7 +310,7 @@ initial one) is a multiple of 4 bytes.** The last chunk may be of any length.
 
 Example::
 
-   hash = uhashlib.sha1('abcd1234', 1001)    # length of the initial piece is multiple of 4 bytes
+   hash = hashlib.sha1('abcd1234', 1001)    # length of the initial piece is multiple of 4 bytes
    hash.update('1234')                       # also multiple of 4 bytes
    ...
    hash.update('12345')                      # last chunk may be of any length
@@ -343,7 +345,7 @@ Example::
 
    Create a server instance, see ``init`` for parameters of initialization.
 
-.. method:: server.init(\*, login=('micro', 'python'), timeout=300)
+.. method:: server.init(*, login=('micro', 'python'), timeout=300)
 
    Init (and effectively start the server). Optionally a new ``user``, ``password``
    and ``timeout`` (in seconds) can be passed.
@@ -364,9 +366,9 @@ Adhoc VFS-like support
 ~~~~~~~~~~~~~~~~~~~~~~
 
 WiPy doesn't implement full MicroPython VFS support, instead following
-functions are defined in ``uos`` module:
+functions are defined in ``os`` module:
 
-.. function:: mount(block_device, mount_point, \*, readonly=False)
+.. function:: mount(block_device, mount_point, *, readonly=False)
 
    Mounts a block device (like an ``SD`` object) in the specified mount
    point. Example::

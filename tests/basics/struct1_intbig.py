@@ -12,6 +12,8 @@ print(struct.pack("<I", 2**32 - 1))
 print(struct.pack("<I", 0xffffffff))
 
 # long long ints
+print(struct.pack("<Q", 1))
+print(struct.pack(">Q", 1))
 print(struct.pack("<Q", 2**64 - 1))
 print(struct.pack(">Q", 2**64 - 1))
 print(struct.pack("<Q", 0xffffffffffffffff))
@@ -34,3 +36,11 @@ print(struct.unpack("<Q", b"\xff\xff\xff\xff\xff\xff\xff\xff"))
 # check small int overflow
 print(struct.unpack("<i", b'\xff\xff\xff\x7f'))
 print(struct.unpack("<q", b'\xff\xff\xff\xff\xff\xff\xff\x7f'))
+
+# test with negative big integers that are actually small in magnitude
+bigzero = (1 << 70) - (1 << 70)
+for endian in "<>":
+    for type_ in "bhiq":
+        fmt = endian + type_
+        b = struct.pack(fmt, -2 + bigzero)
+        print(fmt, b, struct.unpack(fmt, b))

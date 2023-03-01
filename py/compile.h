@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * The MIT License (MIT)
  *
@@ -30,22 +30,14 @@
 #include "py/parse.h"
 #include "py/emitglue.h"
 
-// These must fit in 8 bits; see scope.h
-enum {
-    MP_EMIT_OPT_NONE,
-    MP_EMIT_OPT_BYTECODE,
-    MP_EMIT_OPT_NATIVE_PYTHON,
-    MP_EMIT_OPT_VIPER,
-    MP_EMIT_OPT_ASM,
-};
-
 // the compiler will raise an exception if an error occurred
 // the compiler will clear the parse tree before it returns
-mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, uint emit_opt, bool is_repl);
+// mp_globals_get() will be used for the context
+mp_obj_t mp_compile(mp_parse_tree_t *parse_tree, qstr source_file, bool is_repl);
 
 #if MICROPY_PERSISTENT_CODE_SAVE
 // this has the same semantics as mp_compile
-mp_raw_code_t *mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_file, uint emit_opt, bool is_repl);
+void mp_compile_to_raw_code(mp_parse_tree_t *parse_tree, qstr source_file, bool is_repl, mp_compiled_module_t *cm);
 #endif
 
 // this is implemented in runtime.c

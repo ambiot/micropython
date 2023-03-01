@@ -1,5 +1,7 @@
-The Switch, callbacks and interrupts
-====================================
+.. _pyboard_tutorial_switch:
+
+Switches, callbacks and interrupts
+==================================
 
 The pyboard has 2 small switches, labelled USR and RST.  The RST switch
 is a hard-reset switch, and if you press it then it restarts the pyboard
@@ -91,7 +93,7 @@ on the pin for any changes, and the following will occur:
    running Python script.
 3. The microcontroller starts executing the special interrupt handler
    associated with the switch's external trigger.  This interrupt handler
-   get the function that you registered with ``sw.callback()`` and executes
+   gets the function that you registered with ``sw.callback()`` and executes
    it.
 4. Your callback function is executed until it finishes, returning control
    to the switch interrupt handler.

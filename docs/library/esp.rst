@@ -1,16 +1,20 @@
-:mod:`esp` --- functions related to the ESP8266
-===============================================
+:mod:`esp` --- functions related to the ESP8266 and ESP32
+=========================================================
 
 .. module:: esp
-    :synopsis: functions related to the ESP8266
+    :synopsis: functions related to the ESP8266 and ESP32
 
-The ``esp`` module contains specific functions related to the ESP8266 module.
+The ``esp`` module contains specific functions related to both the ESP8266 and
+ESP32 modules.  Some functions are only available on one or the other of these
+ports.
 
 
 Functions
 ---------
 
 .. function:: sleep_type([sleep_type])
+
+    **Note**: ESP8266 only
 
     Get or set the sleep type.
 
@@ -27,7 +31,9 @@ Functions
 
     The system enters the set sleep mode automatically when possible.
 
-.. function:: deepsleep(time=0)
+.. function:: deepsleep(time_us=0, /)
+
+    **Note**: ESP8266 only - use `machine.deepsleep()` on ESP32
 
     Enter deep sleep.
 
@@ -38,7 +44,17 @@ Functions
 
 .. function:: flash_id()
 
+    **Note**: ESP8266 only
+
     Read the device ID of the flash memory.
+
+.. function:: flash_size()
+
+    Read the total size of the flash memory.
+
+.. function:: flash_user_start()
+
+    Read the memory offset at which the user flash space begins.
 
 .. function:: flash_read(byte_offset, length_or_buffer)
 
@@ -46,7 +62,24 @@ Functions
 
 .. function:: flash_erase(sector_no)
 
+.. function:: osdebug(level)
+
+    Turn esp os debugging messages on or off.
+
+    The *level* parameter sets the threshold for the log messages for all esp components.
+    The log levels are defined as constants:
+
+        * ``LOG_NONE`` -- No log output
+        * ``LOG_ERROR`` -- Critical errors, software module can not recover on its own
+        * ``LOG_WARN`` -- Error conditions from which recovery measures have been taken
+        * ``LOG_INFO`` -- Information messages which describe normal flow of events
+        * ``LOG_DEBUG`` -- Extra information which is not necessary for normal use (values, pointers, sizes, etc)
+        * ``LOG_VERBOSE`` -- Bigger chunks of debugging information, or frequent messages
+          which can potentially flood the output
+
 .. function:: set_native_code_location(start, length)
+
+    **Note**: ESP8266 only
 
     Set the location that native code will be placed for execution after it is
     compiled.  Native code is emitted when the ``@micropython.native``,

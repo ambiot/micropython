@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2016 Damien P. George
+ * Copyright (c) 2013-2020 Damien P. George
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,42 +30,22 @@
 #include <assert.h>
 
 #include "py/reader.h"
-#include "py/emitglue.h"
+#include "py/nativeglue.h"
 #include "py/persistentcode.h"
-#include "py/bc.h"
+#include "py/bc0.h"
+#include "py/objstr.h"
+#include "py/mpthread.h"
 
 #if MICROPY_PERSISTENT_CODE_LOAD || MICROPY_PERSISTENT_CODE_SAVE
 
 #include "py/smallint.h"
 
-// The current version of .mpy files
-#define MPY_VERSION (2)
+#define QSTR_LAST_STATIC MP_QSTR_zip
 
-// The feature flags byte encodes the compile-time config options that
-// affect the generate bytecode.
-#define MPY_FEATURE_FLAGS ( \
-    ((MICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE) << 0) \
-    | ((MICROPY_PY_BUILTINS_STR_UNICODE) << 1) \
-    )
-// This is a version of the flags that can be configured at runtime.
-#define MPY_FEATURE_FLAGS_DYNAMIC ( \
-    ((MICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE_DYNAMIC) << 0) \
-    | ((MICROPY_PY_BUILTINS_STR_UNICODE_DYNAMIC) << 1) \
-    )
-
-#if MICROPY_PERSISTENT_CODE_LOAD || (MICROPY_PERSISTENT_CODE_SAVE && !MICROPY_DYNAMIC_COMPILER)
-// The bytecode will depend on the number of bits in a small-int, and
-// this function computes that (could make it a fixed constant, but it
-// would need to be defined in mpconfigport.h).
-STATIC int mp_small_int_bits(void) {
-    mp_int_t i = MP_SMALL_INT_MAX;
-    int n = 1;
-    while (i != 0) {
-        i >>= 1;
-        ++n;
-    }
-    return n;
-}
+#if MICROPY_DYNAMIC_COMPILER
+#define MPY_FEATURE_ARCH_DYNAMIC mp_dynamic_compiler.native_arch
+#else
+#define MPY_FEATURE_ARCH_DYNAMIC MPY_FEATURE_ARCH
 #endif
 
 typedef struct _bytecode_prelude_t {
@@ -78,28 +58,80 @@ typedef struct _bytecode_prelude_t {
     uint code_info_size;
 } bytecode_prelude_t;
 
-// ip will point to start of opcodes
-// ip2 will point to simple_name, source_file qstrs
-STATIC void extract_prelude(const byte **ip, const byte **ip2, bytecode_prelude_t *prelude) {
-    prelude->n_state = mp_decode_uint(ip);
-    prelude->n_exc_stack = mp_decode_uint(ip);
-    prelude->scope_flags = *(*ip)++;
-    prelude->n_pos_args = *(*ip)++;
-    prelude->n_kwonly_args = *(*ip)++;
-    prelude->n_def_pos_args = *(*ip)++;
-    *ip2 = *ip;
-    prelude->code_info_size = mp_decode_uint(ip2);
-    *ip += prelude->code_info_size;
-    while (*(*ip)++ != 255) {
-    }
-}
-
 #endif // MICROPY_PERSISTENT_CODE_LOAD || MICROPY_PERSISTENT_CODE_SAVE
 
 #if MICROPY_PERSISTENT_CODE_LOAD
 
 #include "py/parsenum.h"
-#include "py/bc0.h"
+
+STATIC int read_byte(mp_reader_t *reader);
+STATIC size_t read_uint(mp_reader_t *reader);
+
+#if MICROPY_EMIT_MACHINE_CODE
+
+typedef struct _reloc_info_t {
+    mp_reader_t *reader;
+    mp_module_context_t *context;
+    uint8_t *rodata;
+    uint8_t *bss;
+} reloc_info_t;
+
+void mp_native_relocate(void *ri_in, uint8_t *text, uintptr_t reloc_text) {
+    // Relocate native code
+    reloc_info_t *ri = ri_in;
+    uint8_t op;
+    uintptr_t *addr_to_adjust = NULL;
+    while ((op = read_byte(ri->reader)) != 0xff) {
+        if (op & 1) {
+            // Point to new location to make adjustments
+            size_t addr = read_uint(ri->reader);
+            if ((addr & 1) == 0) {
+                // Point to somewhere in text
+                addr_to_adjust = &((uintptr_t *)text)[addr >> 1];
+            } else {
+                // Point to somewhere in rodata
+                addr_to_adjust = &((uintptr_t *)ri->rodata)[addr >> 1];
+            }
+        }
+        op >>= 1;
+        uintptr_t dest;
+        size_t n = 1;
+        if (op <= 5) {
+            if (op & 1) {
+                // Read in number of adjustments to make
+                n = read_uint(ri->reader);
+            }
+            op >>= 1;
+            if (op == 0) {
+                // Destination is text
+                dest = reloc_text;
+            } else if (op == 1) {
+                // Destination is rodata
+                dest = (uintptr_t)ri->rodata;
+            } else {
+                // Destination is bss
+                dest = (uintptr_t)ri->bss;
+            }
+        } else if (op == 6) {
+            // Destination is qstr_table
+            dest = (uintptr_t)ri->context->constants.qstr_table;
+        } else if (op == 7) {
+            // Destination is obj_table
+            dest = (uintptr_t)ri->context->constants.obj_table;
+        } else if (op == 8) {
+            // Destination is mp_fun_table itself
+            dest = (uintptr_t)&mp_fun_table;
+        } else {
+            // Destination is an entry in mp_fun_table
+            dest = ((uintptr_t *)&mp_fun_table)[op - 9];
+        }
+        while (n--) {
+            *addr_to_adjust++ += dest;
+        }
+    }
+}
+
+#endif
 
 STATIC int read_byte(mp_reader_t *reader) {
     return reader->readbyte(reader->data);
@@ -125,8 +157,14 @@ STATIC size_t read_uint(mp_reader_t *reader) {
 
 STATIC qstr load_qstr(mp_reader_t *reader) {
     size_t len = read_uint(reader);
+    if (len & 1) {
+        // static qstr
+        return len >> 1;
+    }
+    len >>= 1;
     char *str = m_new(char, len);
-    read_bytes(reader, (byte*)str, len);
+    read_bytes(reader, (byte *)str, len);
+    read_byte(reader); // read and discard null terminator
     qstr qst = qstr_from_strn(str, len);
     m_del(char, str, len);
     return qst;
@@ -134,106 +172,287 @@ STATIC qstr load_qstr(mp_reader_t *reader) {
 
 STATIC mp_obj_t load_obj(mp_reader_t *reader) {
     byte obj_type = read_byte(reader);
-    if (obj_type == 'e') {
+    #if MICROPY_EMIT_MACHINE_CODE
+    if (obj_type == MP_PERSISTENT_OBJ_FUN_TABLE) {
+        return MP_OBJ_FROM_PTR(&mp_fun_table);
+    } else
+    #endif
+    if (obj_type == MP_PERSISTENT_OBJ_NONE) {
+        return mp_const_none;
+    } else if (obj_type == MP_PERSISTENT_OBJ_FALSE) {
+        return mp_const_false;
+    } else if (obj_type == MP_PERSISTENT_OBJ_TRUE) {
+        return mp_const_true;
+    } else if (obj_type == MP_PERSISTENT_OBJ_ELLIPSIS) {
         return MP_OBJ_FROM_PTR(&mp_const_ellipsis_obj);
     } else {
         size_t len = read_uint(reader);
+        if (len == 0 && obj_type == MP_PERSISTENT_OBJ_BYTES) {
+            read_byte(reader); // skip null terminator
+            return mp_const_empty_bytes;
+        } else if (obj_type == MP_PERSISTENT_OBJ_TUPLE) {
+            mp_obj_tuple_t *tuple = MP_OBJ_TO_PTR(mp_obj_new_tuple(len, NULL));
+            for (size_t i = 0; i < len; ++i) {
+                tuple->items[i] = load_obj(reader);
+            }
+            return MP_OBJ_FROM_PTR(tuple);
+        }
         vstr_t vstr;
         vstr_init_len(&vstr, len);
-        read_bytes(reader, (byte*)vstr.buf, len);
-        if (obj_type == 's' || obj_type == 'b') {
-            return mp_obj_new_str_from_vstr(obj_type == 's' ? &mp_type_str : &mp_type_bytes, &vstr);
-        } else if (obj_type == 'i') {
+        read_bytes(reader, (byte *)vstr.buf, len);
+        if (obj_type == MP_PERSISTENT_OBJ_STR || obj_type == MP_PERSISTENT_OBJ_BYTES) {
+            read_byte(reader); // skip null terminator
+            if (obj_type == MP_PERSISTENT_OBJ_STR) {
+                return mp_obj_new_str_from_utf8_vstr(&vstr);
+            } else {
+                return mp_obj_new_bytes_from_vstr(&vstr);
+            }
+        } else if (obj_type == MP_PERSISTENT_OBJ_INT) {
             return mp_parse_num_integer(vstr.buf, vstr.len, 10, NULL);
         } else {
-            assert(obj_type == 'f' || obj_type == 'c');
-            return mp_parse_num_decimal(vstr.buf, vstr.len, obj_type == 'c', false, NULL);
+            assert(obj_type == MP_PERSISTENT_OBJ_FLOAT || obj_type == MP_PERSISTENT_OBJ_COMPLEX);
+            return mp_parse_num_float(vstr.buf, vstr.len, obj_type == MP_PERSISTENT_OBJ_COMPLEX, NULL);
         }
     }
 }
 
-STATIC void load_bytecode_qstrs(mp_reader_t *reader, byte *ip, byte *ip_top) {
-    while (ip < ip_top) {
-        size_t sz;
-        uint f = mp_opcode_format(ip, &sz);
-        if (f == MP_OPCODE_QSTR) {
-            qstr qst = load_qstr(reader);
-            ip[1] = qst;
-            ip[2] = qst >> 8;
+STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader, mp_module_context_t *context) {
+    // Load function kind and data length
+    size_t kind_len = read_uint(reader);
+    int kind = (kind_len & 3) + MP_CODE_BYTECODE;
+    bool has_children = !!(kind_len & 4);
+    size_t fun_data_len = kind_len >> 3;
+
+    #if !MICROPY_EMIT_MACHINE_CODE
+    if (kind != MP_CODE_BYTECODE) {
+        mp_raise_ValueError(MP_ERROR_TEXT("incompatible .mpy file"));
+    }
+    #endif
+
+    uint8_t *fun_data = NULL;
+    #if MICROPY_EMIT_MACHINE_CODE
+    size_t prelude_offset = 0;
+    mp_uint_t native_scope_flags = 0;
+    mp_uint_t native_n_pos_args = 0;
+    mp_uint_t native_type_sig = 0;
+    #endif
+
+    if (kind == MP_CODE_BYTECODE) {
+        // Allocate memory for the bytecode
+        fun_data = m_new(uint8_t, fun_data_len);
+        // Load bytecode
+        read_bytes(reader, fun_data, fun_data_len);
+
+    #if MICROPY_EMIT_MACHINE_CODE
+    } else {
+        // Allocate memory for native data and load it
+        size_t fun_alloc;
+        MP_PLAT_ALLOC_EXEC(fun_data_len, (void **)&fun_data, &fun_alloc);
+        read_bytes(reader, fun_data, fun_data_len);
+
+        if (kind == MP_CODE_NATIVE_PY) {
+            // Read prelude offset within fun_data, and extract scope flags.
+            prelude_offset = read_uint(reader);
+            const byte *ip = fun_data + prelude_offset;
+            MP_BC_PRELUDE_SIG_DECODE(ip);
+            native_scope_flags = scope_flags;
+        } else {
+            // Load basic scope info for viper and asm.
+            native_scope_flags = read_uint(reader);
+            if (kind == MP_CODE_NATIVE_ASM) {
+                native_n_pos_args = read_uint(reader);
+                native_type_sig = read_uint(reader);
+            }
         }
-        ip += sz;
-    }
-}
-
-STATIC mp_raw_code_t *load_raw_code(mp_reader_t *reader) {
-    // load bytecode
-    size_t bc_len = read_uint(reader);
-    byte *bytecode = m_new(byte, bc_len);
-    read_bytes(reader, bytecode, bc_len);
-
-    // extract prelude
-    const byte *ip = bytecode;
-    const byte *ip2;
-    bytecode_prelude_t prelude;
-    extract_prelude(&ip, &ip2, &prelude);
-
-    // load qstrs and link global qstr ids into bytecode
-    qstr simple_name = load_qstr(reader);
-    qstr source_file = load_qstr(reader);
-    ((byte*)ip2)[0] = simple_name; ((byte*)ip2)[1] = simple_name >> 8;
-    ((byte*)ip2)[2] = source_file; ((byte*)ip2)[3] = source_file >> 8;
-    load_bytecode_qstrs(reader, (byte*)ip, bytecode + bc_len);
-
-    // load constant table
-    size_t n_obj = read_uint(reader);
-    size_t n_raw_code = read_uint(reader);
-    mp_uint_t *const_table = m_new(mp_uint_t, prelude.n_pos_args + prelude.n_kwonly_args + n_obj + n_raw_code);
-    mp_uint_t *ct = const_table;
-    for (size_t i = 0; i < prelude.n_pos_args + prelude.n_kwonly_args; ++i) {
-        *ct++ = (mp_uint_t)MP_OBJ_NEW_QSTR(load_qstr(reader));
-    }
-    for (size_t i = 0; i < n_obj; ++i) {
-        *ct++ = (mp_uint_t)load_obj(reader);
-    }
-    for (size_t i = 0; i < n_raw_code; ++i) {
-        *ct++ = (mp_uint_t)(uintptr_t)load_raw_code(reader);
+    #endif
     }
 
-    // create raw_code and return it
+    size_t n_children = 0;
+    mp_raw_code_t **children = NULL;
+
+    #if MICROPY_EMIT_MACHINE_CODE
+    // Load optional BSS/rodata for viper.
+    uint8_t *rodata = NULL;
+    uint8_t *bss = NULL;
+    if (kind == MP_CODE_NATIVE_VIPER) {
+        size_t rodata_size = 0;
+        if (native_scope_flags & MP_SCOPE_FLAG_VIPERRODATA) {
+            rodata_size = read_uint(reader);
+        }
+
+        size_t bss_size = 0;
+        if (native_scope_flags & MP_SCOPE_FLAG_VIPERBSS) {
+            bss_size = read_uint(reader);
+        }
+
+        if (rodata_size + bss_size != 0) {
+            bss_size = (uintptr_t)MP_ALIGN(bss_size, sizeof(uintptr_t));
+            uint8_t *data = m_new0(uint8_t, bss_size + rodata_size);
+            bss = data;
+            rodata = bss + bss_size;
+            if (native_scope_flags & MP_SCOPE_FLAG_VIPERRODATA) {
+                read_bytes(reader, rodata, rodata_size);
+            }
+
+            // Viper code with BSS/rodata should not have any children.
+            // Reuse the children pointer to reference the BSS/rodata
+            // memory so that it is not reclaimed by the GC.
+            assert(!has_children);
+            children = (void *)data;
+        }
+    }
+    #endif
+
+    // Load children if any.
+    if (has_children) {
+        n_children = read_uint(reader);
+        children = m_new(mp_raw_code_t *, n_children + (kind == MP_CODE_NATIVE_PY));
+        for (size_t i = 0; i < n_children; ++i) {
+            children[i] = load_raw_code(reader, context);
+        }
+    }
+
+    // Create raw_code and return it
     mp_raw_code_t *rc = mp_emit_glue_new_raw_code();
-    mp_emit_glue_assign_bytecode(rc, bytecode, bc_len, const_table,
-        #if MICROPY_PERSISTENT_CODE_SAVE
-        n_obj, n_raw_code,
+    if (kind == MP_CODE_BYTECODE) {
+        const byte *ip = fun_data;
+        MP_BC_PRELUDE_SIG_DECODE(ip);
+        // Assign bytecode to raw code object
+        mp_emit_glue_assign_bytecode(rc, fun_data,
+            #if MICROPY_PERSISTENT_CODE_SAVE || MICROPY_DEBUG_PRINTERS
+            fun_data_len,
+            #endif
+            children,
+            #if MICROPY_PERSISTENT_CODE_SAVE
+            n_children,
+            #endif
+            scope_flags);
+
+    #if MICROPY_EMIT_MACHINE_CODE
+    } else {
+        const uint8_t *prelude_ptr;
+        #if MICROPY_EMIT_NATIVE_PRELUDE_SEPARATE_FROM_MACHINE_CODE
+        if (kind == MP_CODE_NATIVE_PY) {
+            // Executable code cannot be accessed byte-wise on this architecture, so copy
+            // the prelude to a separate memory region that is byte-wise readable.
+            void *buf = fun_data + prelude_offset;
+            size_t n = fun_data_len - prelude_offset;
+            prelude_ptr = memcpy(m_new(uint8_t, n), buf, n);
+        }
         #endif
-        prelude.scope_flags);
+
+        // Relocate and commit code to executable address space
+        reloc_info_t ri = {reader, context, rodata, bss};
+        #if defined(MP_PLAT_COMMIT_EXEC)
+        void *opt_ri = (native_scope_flags & MP_SCOPE_FLAG_VIPERRELOC) ? &ri : NULL;
+        fun_data = MP_PLAT_COMMIT_EXEC(fun_data, fun_data_len, opt_ri);
+        #else
+        if (native_scope_flags & MP_SCOPE_FLAG_VIPERRELOC) {
+            #if MICROPY_PERSISTENT_CODE_TRACK_RELOC_CODE
+            // If native code needs relocations then it's not guaranteed that a pointer to
+            // the head of `buf` (containing the machine code) will be retained for the GC
+            // to trace.  This is because native functions can start inside `buf` and so
+            // it's possible that the only GC-reachable pointers are pointers inside `buf`.
+            // So put this `buf` on a list of reachable root pointers.
+            if (MP_STATE_PORT(track_reloc_code_list) == MP_OBJ_NULL) {
+                MP_STATE_PORT(track_reloc_code_list) = mp_obj_new_list(0, NULL);
+            }
+            mp_obj_list_append(MP_STATE_PORT(track_reloc_code_list), MP_OBJ_FROM_PTR(fun_data));
+            #endif
+            // Do the relocations.
+            mp_native_relocate(&ri, fun_data, (uintptr_t)fun_data);
+        }
+        #endif
+
+        if (kind == MP_CODE_NATIVE_PY) {
+            #if !MICROPY_EMIT_NATIVE_PRELUDE_SEPARATE_FROM_MACHINE_CODE
+            prelude_ptr = fun_data + prelude_offset;
+            #endif
+            if (n_children == 0) {
+                children = (void *)prelude_ptr;
+            } else {
+                children[n_children] = (void *)prelude_ptr;
+            }
+        }
+
+        // Assign native code to raw code object
+        mp_emit_glue_assign_native(rc, kind,
+            fun_data, fun_data_len,
+            children,
+            #if MICROPY_PERSISTENT_CODE_SAVE
+            n_children,
+            prelude_offset,
+            #endif
+            native_scope_flags, native_n_pos_args, native_type_sig
+            );
+    #endif
+    }
     return rc;
 }
 
-mp_raw_code_t *mp_raw_code_load(mp_reader_t *reader) {
+void mp_raw_code_load(mp_reader_t *reader, mp_compiled_module_t *cm) {
     byte header[4];
     read_bytes(reader, header, sizeof(header));
+    byte arch = MPY_FEATURE_DECODE_ARCH(header[2]);
     if (header[0] != 'M'
         || header[1] != MPY_VERSION
-        || header[2] != MPY_FEATURE_FLAGS
-        || header[3] > mp_small_int_bits()) {
-        mp_raise_ValueError("incompatible .mpy file");
+        || (arch != MP_NATIVE_ARCH_NONE && MPY_FEATURE_DECODE_SUB_VERSION(header[2]) != MPY_SUB_VERSION)
+        || header[3] > MP_SMALL_INT_BITS) {
+        mp_raise_ValueError(MP_ERROR_TEXT("incompatible .mpy file"));
     }
-    mp_raw_code_t *rc = load_raw_code(reader);
+    if (MPY_FEATURE_DECODE_ARCH(header[2]) != MP_NATIVE_ARCH_NONE) {
+        if (!MPY_FEATURE_ARCH_TEST(arch)) {
+            if (MPY_FEATURE_ARCH_TEST(MP_NATIVE_ARCH_NONE)) {
+                // On supported ports this can be resolved by enabling feature, eg
+                // mpconfigboard.h: MICROPY_EMIT_THUMB (1)
+                mp_raise_ValueError(MP_ERROR_TEXT("native code in .mpy unsupported"));
+            } else {
+                mp_raise_ValueError(MP_ERROR_TEXT("incompatible .mpy arch"));
+            }
+        }
+    }
+
+    size_t n_qstr = read_uint(reader);
+    size_t n_obj = read_uint(reader);
+    mp_module_context_alloc_tables(cm->context, n_qstr, n_obj);
+
+    // Load qstrs.
+    for (size_t i = 0; i < n_qstr; ++i) {
+        cm->context->constants.qstr_table[i] = load_qstr(reader);
+    }
+
+    // Load constant objects.
+    for (size_t i = 0; i < n_obj; ++i) {
+        cm->context->constants.obj_table[i] = load_obj(reader);
+    }
+
+    // Load top-level module.
+    cm->rc = load_raw_code(reader, cm->context);
+
+    #if MICROPY_PERSISTENT_CODE_SAVE
+    cm->has_native = MPY_FEATURE_DECODE_ARCH(header[2]) != MP_NATIVE_ARCH_NONE;
+    cm->n_qstr = n_qstr;
+    cm->n_obj = n_obj;
+    #endif
+
     reader->close(reader->data);
-    return rc;
 }
 
-mp_raw_code_t *mp_raw_code_load_mem(const byte *buf, size_t len) {
+void mp_raw_code_load_mem(const byte *buf, size_t len, mp_compiled_module_t *context) {
     mp_reader_t reader;
     mp_reader_new_mem(&reader, buf, len, 0);
-    return mp_raw_code_load(&reader);
+    mp_raw_code_load(&reader, context);
 }
 
-mp_raw_code_t *mp_raw_code_load_file(const char *filename) {
+#if MICROPY_HAS_FILE_READER
+
+void mp_raw_code_load_file(const char *filename, mp_compiled_module_t *context) {
     mp_reader_t reader;
     mp_reader_new_file(&reader, filename);
-    return mp_raw_code_load(&reader);
+    mp_raw_code_load(&reader, context);
 }
+
+#endif // MICROPY_HAS_FILE_READER
 
 #endif // MICROPY_PERSISTENT_CODE_LOAD
 
@@ -242,10 +461,10 @@ mp_raw_code_t *mp_raw_code_load_file(const char *filename) {
 #include "py/objstr.h"
 
 STATIC void mp_print_bytes(mp_print_t *print, const byte *data, size_t len) {
-    print->print_strn(print->data, (const char*)data, len);
+    print->print_strn(print->data, (const char *)data, len);
 }
 
-#define BYTES_FOR_INT ((BYTES_PER_WORD * 8 + 6) / 7)
+#define BYTES_FOR_INT ((MP_BYTES_PER_OBJ_WORD * 8 + 6) / 7)
 STATIC void mp_print_uint(mp_print_t *print, size_t n) {
     byte buf[BYTES_FOR_INT];
     byte *p = buf + sizeof(buf);
@@ -254,45 +473,75 @@ STATIC void mp_print_uint(mp_print_t *print, size_t n) {
     for (; n != 0; n >>= 7) {
         *--p = 0x80 | (n & 0x7f);
     }
-    print->print_strn(print->data, (char*)p, buf + sizeof(buf) - p);
+    print->print_strn(print->data, (char *)p, buf + sizeof(buf) - p);
 }
 
 STATIC void save_qstr(mp_print_t *print, qstr qst) {
+    if (qst <= QSTR_LAST_STATIC) {
+        // encode static qstr
+        mp_print_uint(print, qst << 1 | 1);
+        return;
+    }
     size_t len;
     const byte *str = qstr_data(qst, &len);
-    mp_print_uint(print, len);
-    mp_print_bytes(print, str, len);
+    mp_print_uint(print, len << 1);
+    mp_print_bytes(print, str, len + 1); // +1 to store null terminator
 }
 
 STATIC void save_obj(mp_print_t *print, mp_obj_t o) {
-    if (MP_OBJ_IS_STR_OR_BYTES(o)) {
+    #if MICROPY_EMIT_MACHINE_CODE
+    if (o == MP_OBJ_FROM_PTR(&mp_fun_table)) {
+        byte obj_type = MP_PERSISTENT_OBJ_FUN_TABLE;
+        mp_print_bytes(print, &obj_type, 1);
+    } else
+    #endif
+    if (mp_obj_is_str_or_bytes(o)) {
         byte obj_type;
-        if (MP_OBJ_IS_STR(o)) {
-            obj_type = 's';
+        if (mp_obj_is_str(o)) {
+            obj_type = MP_PERSISTENT_OBJ_STR;
         } else {
-            obj_type = 'b';
+            obj_type = MP_PERSISTENT_OBJ_BYTES;
         }
-        mp_uint_t len;
+        size_t len;
         const char *str = mp_obj_str_get_data(o, &len);
         mp_print_bytes(print, &obj_type, 1);
         mp_print_uint(print, len);
-        mp_print_bytes(print, (const byte*)str, len);
-    } else if (MP_OBJ_TO_PTR(o) == &mp_const_ellipsis_obj) {
-        byte obj_type = 'e';
+        mp_print_bytes(print, (const byte *)str, len + 1); // +1 to store null terminator
+    } else if (o == mp_const_none) {
+        byte obj_type = MP_PERSISTENT_OBJ_NONE;
         mp_print_bytes(print, &obj_type, 1);
+    } else if (o == mp_const_false) {
+        byte obj_type = MP_PERSISTENT_OBJ_FALSE;
+        mp_print_bytes(print, &obj_type, 1);
+    } else if (o == mp_const_true) {
+        byte obj_type = MP_PERSISTENT_OBJ_TRUE;
+        mp_print_bytes(print, &obj_type, 1);
+    } else if (MP_OBJ_TO_PTR(o) == &mp_const_ellipsis_obj) {
+        byte obj_type = MP_PERSISTENT_OBJ_ELLIPSIS;
+        mp_print_bytes(print, &obj_type, 1);
+    } else if (mp_obj_is_type(o, &mp_type_tuple)) {
+        size_t len;
+        mp_obj_t *items;
+        mp_obj_tuple_get(o, &len, &items);
+        byte obj_type = MP_PERSISTENT_OBJ_TUPLE;
+        mp_print_bytes(print, &obj_type, 1);
+        mp_print_uint(print, len);
+        for (size_t i = 0; i < len; ++i) {
+            save_obj(print, items[i]);
+        }
     } else {
         // we save numbers using a simplistic text representation
         // TODO could be improved
         byte obj_type;
-        if (MP_OBJ_IS_TYPE(o, &mp_type_int)) {
-            obj_type = 'i';
+        if (mp_obj_is_int(o)) {
+            obj_type = MP_PERSISTENT_OBJ_INT;
         #if MICROPY_PY_BUILTINS_COMPLEX
-        } else if (MP_OBJ_IS_TYPE(o, &mp_type_complex)) {
-            obj_type = 'c';
+        } else if (mp_obj_is_type(o, &mp_type_complex)) {
+            obj_type = MP_PERSISTENT_OBJ_COMPLEX;
         #endif
         } else {
             assert(mp_obj_is_float(o));
-            obj_type = 'f';
+            obj_type = MP_PERSISTENT_OBJ_FLOAT;
         }
         vstr_t vstr;
         mp_print_t pr;
@@ -300,81 +549,77 @@ STATIC void save_obj(mp_print_t *print, mp_obj_t o) {
         mp_obj_print_helper(&pr, o, PRINT_REPR);
         mp_print_bytes(print, &obj_type, 1);
         mp_print_uint(print, vstr.len);
-        mp_print_bytes(print, (const byte*)vstr.buf, vstr.len);
+        mp_print_bytes(print, (const byte *)vstr.buf, vstr.len);
         vstr_clear(&vstr);
     }
 }
 
-STATIC void save_bytecode_qstrs(mp_print_t *print, const byte *ip, const byte *ip_top) {
-    while (ip < ip_top) {
-        size_t sz;
-        uint f = mp_opcode_format(ip, &sz);
-        if (f == MP_OPCODE_QSTR) {
-            qstr qst = ip[1] | (ip[2] << 8);
-            save_qstr(print, qst);
+STATIC void save_raw_code(mp_print_t *print, const mp_raw_code_t *rc) {
+    // Save function kind and data length
+    mp_print_uint(print, (rc->fun_data_len << 3) | ((rc->n_children != 0) << 2) | (rc->kind - MP_CODE_BYTECODE));
+
+    // Save function code.
+    mp_print_bytes(print, rc->fun_data, rc->fun_data_len);
+
+    #if MICROPY_EMIT_MACHINE_CODE
+    if (rc->kind == MP_CODE_NATIVE_PY) {
+        // Save prelude size
+        mp_print_uint(print, rc->prelude_offset);
+    } else if (rc->kind == MP_CODE_NATIVE_VIPER || rc->kind == MP_CODE_NATIVE_ASM) {
+        // Save basic scope info for viper and asm
+        mp_print_uint(print, rc->scope_flags & MP_SCOPE_FLAG_ALL_SIG);
+        if (rc->kind == MP_CODE_NATIVE_ASM) {
+            mp_print_uint(print, rc->n_pos_args);
+            mp_print_uint(print, rc->type_sig);
         }
-        ip += sz;
+    }
+    #endif
+
+    if (rc->n_children) {
+        mp_print_uint(print, rc->n_children);
+        for (size_t i = 0; i < rc->n_children; ++i) {
+            save_raw_code(print, rc->children[i]);
+        }
     }
 }
 
-STATIC void save_raw_code(mp_print_t *print, mp_raw_code_t *rc) {
-    if (rc->kind != MP_CODE_BYTECODE) {
-        mp_raise_ValueError("can only save bytecode");
-    }
-
-    // save bytecode
-    mp_print_uint(print, rc->data.u_byte.bc_len);
-    mp_print_bytes(print, rc->data.u_byte.bytecode, rc->data.u_byte.bc_len);
-
-    // extract prelude
-    const byte *ip = rc->data.u_byte.bytecode;
-    const byte *ip2;
-    bytecode_prelude_t prelude;
-    extract_prelude(&ip, &ip2, &prelude);
-
-    // save qstrs
-    save_qstr(print, ip2[0] | (ip2[1] << 8)); // simple_name
-    save_qstr(print, ip2[2] | (ip2[3] << 8)); // source_file
-    save_bytecode_qstrs(print, ip, rc->data.u_byte.bytecode + rc->data.u_byte.bc_len);
-
-    // save constant table
-    mp_print_uint(print, rc->data.u_byte.n_obj);
-    mp_print_uint(print, rc->data.u_byte.n_raw_code);
-    const mp_uint_t *const_table = rc->data.u_byte.const_table;
-    for (uint i = 0; i < prelude.n_pos_args + prelude.n_kwonly_args; ++i) {
-        mp_obj_t o = (mp_obj_t)*const_table++;
-        save_qstr(print, MP_OBJ_QSTR_VALUE(o));
-    }
-    for (uint i = 0; i < rc->data.u_byte.n_obj; ++i) {
-        save_obj(print, (mp_obj_t)*const_table++);
-    }
-    for (uint i = 0; i < rc->data.u_byte.n_raw_code; ++i) {
-        save_raw_code(print, (mp_raw_code_t*)(uintptr_t)*const_table++);
-    }
-}
-
-void mp_raw_code_save(mp_raw_code_t *rc, mp_print_t *print) {
+void mp_raw_code_save(mp_compiled_module_t *cm, mp_print_t *print) {
     // header contains:
     //  byte  'M'
     //  byte  version
-    //  byte  feature flags
+    //  byte  native arch (and sub-version if native)
     //  byte  number of bits in a small int
-    byte header[4] = {'M', MPY_VERSION, MPY_FEATURE_FLAGS_DYNAMIC,
+    byte header[4] = {
+        'M',
+        MPY_VERSION,
+        cm->has_native ? MPY_FEATURE_ENCODE_SUB_VERSION(MPY_SUB_VERSION) | MPY_FEATURE_ENCODE_ARCH(MPY_FEATURE_ARCH_DYNAMIC) : 0,
         #if MICROPY_DYNAMIC_COMPILER
         mp_dynamic_compiler.small_int_bits,
         #else
-        mp_small_int_bits(),
+        MP_SMALL_INT_BITS,
         #endif
     };
     mp_print_bytes(print, header, sizeof(header));
 
-    save_raw_code(print, rc);
+    // Number of entries in constant table.
+    mp_print_uint(print, cm->n_qstr);
+    mp_print_uint(print, cm->n_obj);
+
+    // Save qstrs.
+    for (size_t i = 0; i < cm->n_qstr; ++i) {
+        save_qstr(print, cm->context->constants.qstr_table[i]);
+    }
+
+    // Save constant objects.
+    for (size_t i = 0; i < cm->n_obj; ++i) {
+        save_obj(print, (mp_obj_t)cm->context->constants.obj_table[i]);
+    }
+
+    // Save outer raw code, which will save all its child raw codes.
+    save_raw_code(print, cm->rc);
 }
 
-// here we define mp_raw_code_save_file depending on the port
-// TODO abstract this away properly
-
-#if defined(__i386__) || defined(__x86_64__) || (defined(__arm__) && (defined(__unix__)))
+#if MICROPY_PERSISTENT_CODE_SAVE_FILE
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -382,19 +627,31 @@ void mp_raw_code_save(mp_raw_code_t *rc, mp_print_t *print) {
 
 STATIC void fd_print_strn(void *env, const char *str, size_t len) {
     int fd = (intptr_t)env;
+    MP_THREAD_GIL_EXIT();
     ssize_t ret = write(fd, str, len);
+    MP_THREAD_GIL_ENTER();
     (void)ret;
 }
 
-void mp_raw_code_save_file(mp_raw_code_t *rc, const char *filename) {
+void mp_raw_code_save_file(mp_compiled_module_t *cm, const char *filename) {
+    MP_THREAD_GIL_EXIT();
     int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    mp_print_t fd_print = {(void*)(intptr_t)fd, fd_print_strn};
-    mp_raw_code_save(rc, &fd_print);
+    MP_THREAD_GIL_ENTER();
+    if (fd < 0) {
+        mp_raise_OSError_with_filename(errno, filename);
+    }
+    mp_print_t fd_print = {(void *)(intptr_t)fd, fd_print_strn};
+    mp_raw_code_save(cm, &fd_print);
+    MP_THREAD_GIL_EXIT();
     close(fd);
+    MP_THREAD_GIL_ENTER();
 }
 
-#else
-#error mp_raw_code_save_file not implemented for this platform
-#endif
+#endif // MICROPY_PERSISTENT_CODE_SAVE_FILE
 
 #endif // MICROPY_PERSISTENT_CODE_SAVE
+
+#if MICROPY_PERSISTENT_CODE_TRACK_RELOC_CODE
+// An mp_obj_list_t that tracks relocated native code to prevent the GC from reclaiming them.
+MP_REGISTER_ROOT_POINTER(mp_obj_t track_reloc_code_list);
+#endif

@@ -1,4 +1,4 @@
-.. _quickref:
+.. _esp8266_quickref:
 
 Quick reference for the ESP8266
 ===============================
@@ -8,6 +8,15 @@ Quick reference for the ESP8266
     :width: 640px
 
 The Adafruit Feather HUZZAH board (image attribution: Adafruit).
+
+Below is a quick reference for ESP8266-based boards.  If it is your first time
+working with this board please consider reading the following sections first:
+
+.. toctree::
+   :maxdepth: 1
+
+   general.rst
+   tutorial/index.rst
 
 Installing MicroPython
 ----------------------
@@ -48,13 +57,13 @@ The :mod:`network` module::
     wlan.active(True)       # activate the interface
     wlan.scan()             # scan for access points
     wlan.isconnected()      # check if the station is connected to an AP
-    wlan.connect('essid', 'password') # connect to an AP
-    wlan.config('mac')      # get the interface's MAC adddress
+    wlan.connect('ssid', 'key') # connect to an AP
+    wlan.config('mac')      # get the interface's MAC address
     wlan.ifconfig()         # get the interface's IP/netmask/gw/DNS addresses
 
     ap = network.WLAN(network.AP_IF) # create access-point interface
     ap.active(True)         # activate the interface
-    ap.config(essid='ESP-AP') # set the ESSID of the access point
+    ap.config(ssid='ESP-AP') # set the SSID of the access point
 
 A useful function for connecting to your local WiFi network is::
 
@@ -64,18 +73,18 @@ A useful function for connecting to your local WiFi network is::
         wlan.active(True)
         if not wlan.isconnected():
             print('connecting to network...')
-            wlan.connect('essid', 'password')
+            wlan.connect('ssid', 'key')
             while not wlan.isconnected():
                 pass
         print('network config:', wlan.ifconfig())
 
-Once the network is established the :mod:`socket <usocket>` module can be used
+Once the network is established the :mod:`socket <socket>` module can be used
 to create and use TCP/UDP sockets as usual.
 
 Delay and timing
 ----------------
 
-Use the :mod:`time <utime>` module::
+Use the :mod:`time <time>` module::
 
     import time
 
@@ -129,6 +138,49 @@ Also note that Pin(16) is a special pin (used for wakeup from deepsleep
 mode) and may be not available for use with higher-level classes like
 ``Neopixel``.
 
+There's a higher-level abstraction :ref:`machine.Signal <machine.Signal>`
+which can be used to invert a pin. Useful for illuminating active-low LEDs
+using ``on()`` or ``value(1)``.
+
+UART (serial bus)
+-----------------
+
+See :ref:`machine.UART <machine.UART>`. ::
+
+    from machine import UART
+    uart = UART(0, baudrate=9600)
+    uart.write('hello')
+    uart.read(5) # read up to 5 bytes
+
+Two UARTs are available. UART0 is on Pins 1 (TX) and 3 (RX). UART0 is
+bidirectional, and by default is used for the REPL. UART1 is on Pins 2
+(TX) and 8 (RX) however Pin 8 is used to connect the flash chip, so
+UART1 is TX only.
+
+When UART0 is attached to the REPL, all incoming chars on UART(0) go
+straight to stdin so uart.read() will always return None.  Use
+sys.stdin.read() if it's needed to read characters from the UART(0)
+while it's also used for the REPL (or detach, read, then reattach).
+When detached the UART(0) can be used for other purposes.
+
+If there are no objects in any of the dupterm slots when the REPL is
+started (on hard or soft reset) then UART(0) is automatically attached.
+Without this, the only way to recover a board without a REPL would be to
+completely erase and reflash (which would install the default boot.py which
+attaches the REPL).
+
+To detach the REPL from UART0, use::
+
+    import os
+    os.dupterm(None, 1)
+
+The REPL is attached by default. If you have detached it, to reattach
+it use::
+
+    import os, machine
+    uart = machine.UART(0, 115200)
+    os.dupterm(uart, 1)
+
 PWM (pulse width modulation)
 ----------------------------
 
@@ -166,20 +218,20 @@ Software SPI bus
 ----------------
 
 There are two SPI drivers. One is implemented in software (bit-banging)
-and works on all pins, and is accessed via the :ref:`machine.SPI <machine.SPI>`
+and works on all pins, and is accessed via the :ref:`machine.SoftSPI <machine.SoftSPI>`
 class::
 
-    from machine import Pin, SPI
+    from machine import Pin, SoftSPI
 
     # construct an SPI bus on the given pins
     # polarity is the idle state of SCK
     # phase=0 means sample on the first edge of SCK, phase=1 means the second
-    spi = SPI(-1, baudrate=100000, polarity=1, phase=0, sck=Pin(0), mosi=Pin(2), miso=Pin(4))
+    spi = SoftSPI(baudrate=100000, polarity=1, phase=0, sck=Pin(0), mosi=Pin(2), miso=Pin(4))
 
     spi.init(baudrate=200000) # set the baudrate
 
     spi.read(10)            # read 10 bytes on MISO
-    spi.read(10, 0xff)      # read 10 bytes while outputing 0xff on MOSI
+    spi.read(10, 0xff)      # read 10 bytes while outputting 0xff on MOSI
 
     buf = bytearray(50)     # create a buffer
     spi.readinto(buf)       # read into the given buffer (reads 50 bytes in this case)
@@ -210,18 +262,51 @@ I2C bus
 -------
 
 The I2C driver is implemented in software and works on all pins,
-and is accessed via the :ref:`machine.I2C <machine.I2C>` class::
+and is accessed via the :ref:`machine.I2C <machine.I2C>` class (which is an
+alias of :ref:`machine.SoftI2C <machine.SoftI2C>`)::
 
     from machine import Pin, I2C
 
     # construct an I2C bus
     i2c = I2C(scl=Pin(5), sda=Pin(4), freq=100000)
 
-    i2c.readfrom(0x3a, 4)   # read 4 bytes from slave device with address 0x3a
-    i2c.writeto(0x3a, '12') # write '12' to slave device with address 0x3a
+    i2c.readfrom(0x3a, 4)   # read 4 bytes from peripheral device with address 0x3a
+    i2c.writeto(0x3a, '12') # write '12' to peripheral device with address 0x3a
 
     buf = bytearray(10)     # create a buffer with 10 bytes
-    i2c.writeto(0x3a, buf)  # write the given buffer to the slave
+    i2c.writeto(0x3a, buf)  # write the given buffer to the peripheral
+
+Real time clock (RTC)
+---------------------
+
+See :ref:`machine.RTC <machine.RTC>` ::
+
+    from machine import RTC
+
+    rtc = RTC()
+    rtc.datetime((2017, 8, 23, 1, 12, 48, 0, 0)) # set a specific date and time
+    rtc.datetime() # get date and time
+
+    # synchronize with ntp
+    # need to be connected to wifi
+    import ntptime
+    ntptime.settime() # set the rtc datetime from the remote server
+    rtc.datetime()    # get the date and time in UTC
+
+.. note:: Not all methods are implemented: `RTC.now()`, `RTC.irq(handler=*) <RTC.irq>`
+          (using a custom handler), `RTC.init()` and `RTC.deinit()` are
+          currently not supported.
+
+WDT (Watchdog timer)
+--------------------
+
+See :ref:`machine.WDT <machine.WDT>`. ::
+
+    from machine import WDT
+
+    # enable the WDT
+    wdt = WDT()
+    wdt.feed()
 
 Deep-sleep mode
 ---------------
@@ -289,10 +374,13 @@ Use the ``neopixel`` module::
     np.write()              # write data to all pixels
     r, g, b = np[0]         # get first pixel colour
 
-For low-level driving of a NeoPixel::
+.. Warning::
+   By default ``NeoPixel`` is configured to control the more popular *800kHz*
+   units. It is possible to use alternative timing to control other (typically
+   400kHz) devices by passing ``timing=0`` when constructing the
+   ``NeoPixel`` object.
 
-    import esp
-    esp.neopixel_write(pin, grb_buf, is800khz)
+For low-level driving of a NeoPixel see `machine.bitstream`.
 
 APA102 driver
 -------------
@@ -331,6 +419,20 @@ The DHT driver is implemented in software and works on all pins::
     d.measure()
     d.temperature() # eg. 23.6 (°C)
     d.humidity()    # eg. 41.3 (% RH)
+
+SSD1306 driver
+--------------
+
+Driver for SSD1306 monochrome OLED displays. See tutorial :ref:`ssd1306`. ::
+
+    from machine import Pin, I2C
+    import ssd1306
+
+    i2c = I2C(scl=Pin(5), sda=Pin(4), freq=100000)
+    display = ssd1306.SSD1306_I2C(128, 64, i2c)
+
+    display.text('Hello World', 0, 0, 1)
+    display.show()
 
 WebREPL (web browser interactive prompt)
 ----------------------------------------

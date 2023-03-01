@@ -51,10 +51,10 @@ usrsw.h for an example of using this.
 Constructors
 ------------
 
-.. class:: pyb.ExtInt(pin, mode, pull, callback)
+.. class:: ExtInt(pin, mode, pull, callback)
 
    Create an ExtInt object:
-   
+
      - ``pin`` is the pin on which to enable the interrupt (can be a pin object or any valid pin name).
      - ``mode`` can be one of:
        - ``ExtInt.IRQ_RISING`` - trigger on a rising edge;

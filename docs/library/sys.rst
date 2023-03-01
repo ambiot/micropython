@@ -9,13 +9,26 @@
 Functions
 ---------
 
-.. function:: exit(retval=0)
+.. function:: exit(retval=0, /)
 
    Terminate current program with a given exit code. Underlyingly, this
    function raise as `SystemExit` exception. If an argument is given, its
    value given as an argument to `SystemExit`.
 
-.. function:: print_exception(exc, file=sys.stdout)
+.. function:: atexit(func)
+
+   Register *func* to be called upon termination.  *func* must be a callable
+   that takes no arguments, or ``None`` to disable the call.  The ``atexit``
+   function will return the previous value set by this function, which is
+   initially ``None``.
+
+   .. admonition:: Difference to CPython
+      :class: attention
+
+      This function is a MicroPython extension intended to provide similar
+      functionality to the :mod:`atexit` module in CPython.
+
+.. function:: print_exception(exc, file=sys.stdout, /)
 
    Print exception with a traceback to a file-like object *file* (or
    `sys.stdout` by default).
@@ -28,7 +41,16 @@ Functions
       this function takes just exception value instead of exception type,
       exception value, and traceback object; *file* argument should be
       positional; further arguments are not supported. CPython-compatible
-      ``traceback`` module can be found in micropython-lib.
+      ``traceback`` module can be found in `micropython-lib`.
+
+.. function:: settrace(tracefunc)
+
+   Enable tracing of bytecode execution.  For details see the `CPython
+   documentaion <https://docs.python.org/3/library/sys.html#sys.settrace>`_.
+
+   This function requires a custom MicroPython build as it is typically not
+   present in pre-built firmware (due to it affecting performance).  The relevant
+   configuration option is *MICROPY_PY_SYS_SETTRACE*.
 
 Constants
 ---------
@@ -48,6 +70,8 @@ Constants
 
    * *name* - string "micropython"
    * *version* - tuple (major, minor, micro), e.g. (1, 7, 0)
+   * *_machine* - string describing the underlying machine
+   * *_mpy* - supported mpy file-format version (optional attribute)
 
    This object is the recommended way to distinguish MicroPython from other
    Python implementations (note that it still may not exist in the very
@@ -93,6 +117,14 @@ Constants
 
    A mutable list of directories to search for imported modules.
 
+   .. admonition:: Difference to CPython
+      :class: attention
+
+      On MicroPython, an entry with the value ``".frozen"`` will indicate that import
+      should search :term:`frozen modules <frozen module>` at that point in the search.
+      If no frozen module is found then search will *not* look for a directory called
+      ``.frozen``, instead it will continue with the next entry in ``sys.path``.
+
 .. data:: platform
 
    The platform that MicroPython is running on. For OS/RTOS ports, this is
@@ -102,17 +134,31 @@ Constants
    If you need to check whether your program runs on MicroPython (vs other
    Python implementation), use `sys.implementation` instead.
 
+.. data:: ps1
+          ps2
+
+   Mutable attributes holding strings, which are used for the REPL prompt.  The defaults
+   give the standard Python prompt of ``>>>`` and ``...``.
+
 .. data:: stderr
 
-   Standard error stream.
+   Standard error `stream`.
 
 .. data:: stdin
 
-   Standard input stream.
+   Standard input `stream`.
 
 .. data:: stdout
 
-   Standard output stream.
+   Standard output `stream`.
+
+.. data:: tracebacklimit
+
+   A mutable attribute holding an integer value which is the maximum number of traceback
+   entries to store in an exception.  Set to 0 to disable adding tracebacks.  Defaults
+   to 1000.
+
+   Note: this is not available on all ports.
 
 .. data:: version
 
@@ -121,3 +167,9 @@ Constants
 .. data:: version_info
 
    Python language version that this implementation conforms to, as a tuple of ints.
+
+    .. admonition:: Difference to CPython
+      :class: attention
+
+      Only the first three version numbers (major, minor, micro) are supported and
+      they can be referenced only by index, not by name.

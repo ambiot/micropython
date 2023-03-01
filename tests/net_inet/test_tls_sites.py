@@ -7,6 +7,9 @@ try:
 except:
     import ssl
 
+    # CPython only supports server_hostname with SSLContext
+    ssl = ssl.SSLContext()
+
 
 def test_one(site, opts):
     ai = _socket.getaddrinfo(site, 443)
@@ -22,9 +25,11 @@ def test_one(site, opts):
         else:
             s = ssl.wrap_socket(s)
 
-        s.write(b"GET / HTTP/1.0\r\n\r\n")
+        s.write(b"GET / HTTP/1.0\r\nHost: %s\r\n\r\n" % bytes(site, "latin"))
         resp = s.read(4096)
-#        print(resp)
+        if resp[:7] != b"HTTP/1.":
+            raise ValueError("response doesn't start with HTTP/1.")
+        # print(resp)
 
     finally:
         s.close()
@@ -33,9 +38,9 @@ def test_one(site, opts):
 SITES = [
     "google.com",
     "www.google.com",
-    "api.telegram.org",
-#    "w9rybpfril.execute-api.ap-southeast-2.amazonaws.com",
-    {"host": "w9rybpfril.execute-api.ap-southeast-2.amazonaws.com", "sni": True},
+    "micropython.org",
+    "pypi.org",
+    {"host": "api.pushbullet.com", "sni": True},
 ]
 
 
@@ -50,7 +55,7 @@ def main():
             test_one(site, opts)
             print(site, "ok")
         except Exception as e:
-            print(site, repr(e))
+            print(site, e)
 
 
 main()

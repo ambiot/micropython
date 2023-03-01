@@ -31,7 +31,7 @@
 #include "py/misc.h"
 #include "py/asmbase.h"
 
-#if MICROPY_EMIT_NATIVE || MICROPY_EMIT_INLINE_ASM
+#if MICROPY_EMIT_MACHINE_CODE
 
 void mp_asm_base_init(mp_asm_base_t *as, size_t max_num_labels) {
     as->max_num_labels = max_num_labels;
@@ -46,23 +46,29 @@ void mp_asm_base_deinit(mp_asm_base_t *as, bool free_code) {
 }
 
 void mp_asm_base_start_pass(mp_asm_base_t *as, int pass) {
-    if (pass == MP_ASM_PASS_COMPUTE) {
-        // reset all labels
+    if (pass < MP_ASM_PASS_EMIT) {
+        // Reset labels so we can detect backwards jumps (and verify unique assignment)
         memset(as->label_offsets, -1, as->max_num_labels * sizeof(size_t));
-    } else if (pass == MP_ASM_PASS_EMIT) {
+    } else {
         // allocating executable RAM is platform specific
-        MP_PLAT_ALLOC_EXEC(as->code_offset, (void**)&as->code_base, &as->code_size);
+        MP_PLAT_ALLOC_EXEC(as->code_offset, (void **)&as->code_base, &as->code_size);
         assert(as->code_base != NULL);
     }
     as->pass = pass;
+    as->suppress = false;
     as->code_offset = 0;
 }
 
 // all functions must go through this one to emit bytes
 // if as->pass < MP_ASM_PASS_EMIT, then this function just counts the number
 // of bytes needed and returns NULL, and callers should not store any data
-uint8_t *mp_asm_base_get_cur_to_write_bytes(mp_asm_base_t *as, size_t num_bytes_to_write) {
+// It also returns NULL if generated code should be suppressed at this point.
+uint8_t *mp_asm_base_get_cur_to_write_bytes(void *as_in, size_t num_bytes_to_write) {
+    mp_asm_base_t *as = as_in;
     uint8_t *c = NULL;
+    if (as->suppress) {
+        return c;
+    }
     if (as->pass == MP_ASM_PASS_EMIT) {
         assert(as->code_offset + num_bytes_to_write <= as->code_size);
         c = as->code_base + as->code_offset;
@@ -73,6 +79,11 @@ uint8_t *mp_asm_base_get_cur_to_write_bytes(mp_asm_base_t *as, size_t num_bytes_
 
 void mp_asm_base_label_assign(mp_asm_base_t *as, size_t label) {
     assert(label < as->max_num_labels);
+
+    // Assiging a label ends any dead-code region, and all following machine
+    // code should be emitted (until another mp_asm_base_suppress_code() call).
+    as->suppress = false;
+
     if (as->pass < MP_ASM_PASS_EMIT) {
         // assign label offset
         assert(as->label_offsets[label] == (size_t)-1);
@@ -84,12 +95,12 @@ void mp_asm_base_label_assign(mp_asm_base_t *as, size_t label) {
 }
 
 // align must be a multiple of 2
-void mp_asm_base_align(mp_asm_base_t* as, unsigned int align) {
+void mp_asm_base_align(mp_asm_base_t *as, unsigned int align) {
     as->code_offset = (as->code_offset + align - 1) & (~(align - 1));
 }
 
 // this function assumes a little endian machine
-void mp_asm_base_data(mp_asm_base_t* as, unsigned int bytesize, uintptr_t val) {
+void mp_asm_base_data(mp_asm_base_t *as, unsigned int bytesize, uintptr_t val) {
     uint8_t *c = mp_asm_base_get_cur_to_write_bytes(as, bytesize);
     if (c != NULL) {
         for (unsigned int i = 0; i < bytesize; i++) {
@@ -99,4 +110,4 @@ void mp_asm_base_data(mp_asm_base_t* as, unsigned int bytesize, uintptr_t val) {
     }
 }
 
-#endif // MICROPY_EMIT_NATIVE || MICROPY_EMIT_INLINE_ASM
+#endif // MICROPY_EMIT_MACHINE_CODE

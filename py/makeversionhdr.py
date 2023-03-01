@@ -6,12 +6,14 @@ This script works with Python 2.6, 2.7, 3.3 and 3.4.
 
 from __future__ import print_function
 
+import argparse
 import sys
 import os
 import datetime
 import subprocess
 
-def get_version_info_from_git():
+
+def get_version_info_from_git(repo_path):
     # Python 2.6 doesn't have check_output, so check for that
     try:
         subprocess.check_output
@@ -21,7 +23,12 @@ def get_version_info_from_git():
 
     # Note: git describe doesn't work if no tag is available
     try:
-        git_tag = subprocess.check_output(["git", "describe", "--dirty", "--always"], stderr=subprocess.STDOUT, universal_newlines=True).strip()
+        git_tag = subprocess.check_output(
+            ["git", "describe", "--tags", "--dirty", "--always", "--match", "v[1-9].*"],
+            cwd=repo_path,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+        ).strip()
     except subprocess.CalledProcessError as er:
         if er.returncode == 128:
             # git exit code of 128 means no repository found
@@ -30,7 +37,12 @@ def get_version_info_from_git():
     except OSError:
         return None
     try:
-        git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.STDOUT, universal_newlines=True).strip()
+        git_hash = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=repo_path,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+        ).strip()
     except subprocess.CalledProcessError:
         git_hash = "unknown"
     except OSError:
@@ -38,43 +50,54 @@ def get_version_info_from_git():
 
     try:
         # Check if there are any modified files.
-        subprocess.check_call(["git", "diff", "--no-ext-diff", "--quiet", "--exit-code"], stderr=subprocess.STDOUT)
+        subprocess.check_call(
+            ["git", "diff", "--no-ext-diff", "--quiet", "--exit-code"],
+            cwd=repo_path,
+            stderr=subprocess.STDOUT,
+        )
         # Check if there are any staged files.
-        subprocess.check_call(["git", "diff-index", "--cached", "--quiet", "HEAD", "--"], stderr=subprocess.STDOUT)
+        subprocess.check_call(
+            ["git", "diff-index", "--cached", "--quiet", "HEAD", "--"],
+            cwd=repo_path,
+            stderr=subprocess.STDOUT,
+        )
     except subprocess.CalledProcessError:
         git_hash += "-dirty"
     except OSError:
         return None
 
-    # Try to extract MicroPython version from git tag
-    if git_tag.startswith("v"):
-        ver = git_tag[1:].split("-")[0].split(".")
-        if len(ver) == 2:
-            ver.append("0")
-    else:
-        ver = ["0", "0", "1"]
+    return git_tag, git_hash
 
-    return git_tag, git_hash, ver
 
-def get_version_info_from_docs_conf():
-    with open(os.path.join(os.path.dirname(sys.argv[0]), "..", "docs", "conf.py")) as f:
+def get_version_info_from_mpconfig(repo_path):
+    with open(os.path.join(repo_path, "py", "mpconfig.h")) as f:
         for line in f:
-            if line.startswith("version = release = '"):
-                ver = line.strip().split(" = ")[2].strip("'")
-                git_tag = "v" + ver
-                ver = ver.split(".")
-                if len(ver) == 2:
-                    ver.append("0")
-                return git_tag, "<no hash>", ver
+            if line.startswith("#define MICROPY_VERSION_MAJOR "):
+                ver_major = int(line.strip().split()[2])
+            elif line.startswith("#define MICROPY_VERSION_MINOR "):
+                ver_minor = int(line.strip().split()[2])
+            elif line.startswith("#define MICROPY_VERSION_MICRO "):
+                ver_micro = int(line.strip().split()[2])
+                git_tag = "v%d.%d" % (ver_major, ver_minor)
+                if ver_micro != 0:
+                    git_tag += ".%d" % (ver_micro,)
+                return git_tag, "<no hash>"
     return None
 
-def make_version_header(filename):
-    # Get version info using git, with fallback to docs/conf.py
-    info = get_version_info_from_git()
-    if info is None:
-        info = get_version_info_from_docs_conf()
 
-    git_tag, git_hash, ver = info
+def make_version_header(repo_path, filename):
+    # Get version info using git, with fallback to py/mpconfig.h
+    info = get_version_info_from_git(repo_path)
+    if info is None:
+        info = get_version_info_from_mpconfig(repo_path)
+
+    git_tag, git_hash = info
+
+    build_date = datetime.date.today()
+    if "SOURCE_DATE_EPOCH" in os.environ:
+        build_date = datetime.datetime.utcfromtimestamp(
+            int(os.environ["SOURCE_DATE_EPOCH"])
+        ).date()
 
     # Generate the file with the git and version info
     file_data = """\
@@ -82,26 +105,42 @@ def make_version_header(filename):
 #define MICROPY_GIT_TAG "%s"
 #define MICROPY_GIT_HASH "%s"
 #define MICROPY_BUILD_DATE "%s"
-#define MICROPY_VERSION_MAJOR (%s)
-#define MICROPY_VERSION_MINOR (%s)
-#define MICROPY_VERSION_MICRO (%s)
-#define MICROPY_VERSION_STRING "%s.%s.%s"
-""" % (git_tag, git_hash, datetime.date.today().strftime("%Y-%m-%d"),
-    ver[0], ver[1], ver[2], ver[0], ver[1], ver[2])
+""" % (
+        git_tag,
+        git_hash,
+        build_date.strftime("%Y-%m-%d"),
+    )
 
     # Check if the file contents changed from last time
     write_file = True
     if os.path.isfile(filename):
-        with open(filename, 'r') as f:
+        with open(filename, "r") as f:
             existing_data = f.read()
         if existing_data == file_data:
             write_file = False
 
     # Only write the file if we need to
     if write_file:
-        print("Generating %s" % filename)
-        with open(filename, 'w') as f:
+        print("GEN %s" % filename)
+        with open(filename, "w") as f:
             f.write(file_data)
 
+
+def main():
+    parser = argparse.ArgumentParser()
+    # makeversionheader.py lives in repo/py, so default repo_path to the
+    # parent of sys.argv[0]'s directory.
+    parser.add_argument(
+        "-r",
+        "--repo-path",
+        default=os.path.join(os.path.dirname(sys.argv[0]), ".."),
+        help="path to MicroPython Git repo to query for version",
+    )
+    parser.add_argument("dest", nargs=1, help="output file path")
+    args = parser.parse_args()
+
+    make_version_header(args.repo_path, args.dest[0])
+
+
 if __name__ == "__main__":
-    make_version_header(sys.argv[1])
+    main()

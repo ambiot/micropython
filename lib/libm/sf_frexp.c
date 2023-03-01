@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * These math functions are taken from newlib-nano-2, the newlib/libm/math
  * directory, available from https://github.com/32bitmicro/newlib-nano-2.
@@ -29,7 +29,7 @@ static const float
 #else
 static float
 #endif
-two25 =  3.3554432000e+07; /* 0x4c000000 */
+two25 =  3.3554432000e+07f; /* 0x4c000000 */
 
 #ifdef __STDC__
 	float frexpf(float x, int *eptr)

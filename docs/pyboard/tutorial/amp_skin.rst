@@ -30,7 +30,7 @@ To set the volume, define the following function::
 
     import pyb
     def volume(val):
-        pyb.I2C(1, pyb.I2C.MASTER).mem_write(val, 46, 0)
+        pyb.I2C(1, pyb.I2C.CONTROLLER).mem_write(val, 46, 0)
 
 Then you can do::
 
@@ -60,7 +60,7 @@ on your pyboard (either on the flash or the SD card in the top-level directory).
 or to convert any file you have with the command::
 
     avconv -i original.wav -ar 22050 -codec pcm_u8 test.wav
-    
+
 Then you can do::
 
     >>> import wave

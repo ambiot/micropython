@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2014-2016 Damien P. George
+ * Copyright (c) 2014-2019 Damien P. George
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,6 @@
 
 #include <stdio.h>
 
-#include "py/nlr.h"
 #include "py/objlist.h"
 #include "py/objstringio.h"
 #include "py/parsenum.h"
@@ -35,14 +34,80 @@
 
 #if MICROPY_PY_UJSON
 
+#if MICROPY_PY_UJSON_SEPARATORS
+
+enum {
+    DUMP_MODE_TO_STRING = 1,
+    DUMP_MODE_TO_STREAM = 2,
+};
+
+STATIC mp_obj_t mod_ujson_dump_helper(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args, unsigned int mode) {
+    enum { ARG_separators };
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_separators, MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_rom_obj = MP_ROM_NONE} },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args - mode, pos_args + mode, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    mp_print_ext_t print_ext;
+
+    if (args[ARG_separators].u_obj == mp_const_none) {
+        print_ext.item_separator = ", ";
+        print_ext.key_separator = ": ";
+    } else {
+        mp_obj_t *items;
+        mp_obj_get_array_fixed_n(args[ARG_separators].u_obj, 2, &items);
+        print_ext.item_separator = mp_obj_str_get_str(items[0]);
+        print_ext.key_separator = mp_obj_str_get_str(items[1]);
+    }
+
+    if (mode == DUMP_MODE_TO_STRING) {
+        // dumps(obj)
+        vstr_t vstr;
+        vstr_init_print(&vstr, 8, &print_ext.base);
+        mp_obj_print_helper(&print_ext.base, pos_args[0], PRINT_JSON);
+        return mp_obj_new_str_from_utf8_vstr(&vstr);
+    } else {
+        // dump(obj, stream)
+        print_ext.base.data = MP_OBJ_TO_PTR(pos_args[1]);
+        print_ext.base.print_strn = mp_stream_write_adaptor;
+        mp_get_stream_raise(pos_args[1], MP_STREAM_OP_WRITE);
+        mp_obj_print_helper(&print_ext.base, pos_args[0], PRINT_JSON);
+        return mp_const_none;
+    }
+}
+
+STATIC mp_obj_t mod_ujson_dump(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    return mod_ujson_dump_helper(n_args, pos_args, kw_args, DUMP_MODE_TO_STREAM);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(mod_ujson_dump_obj, 2, mod_ujson_dump);
+
+STATIC mp_obj_t mod_ujson_dumps(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+    return mod_ujson_dump_helper(n_args, pos_args, kw_args, DUMP_MODE_TO_STRING);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_KW(mod_ujson_dumps_obj, 1, mod_ujson_dumps);
+
+#else
+
+STATIC mp_obj_t mod_ujson_dump(mp_obj_t obj, mp_obj_t stream) {
+    mp_get_stream_raise(stream, MP_STREAM_OP_WRITE);
+    mp_print_t print = {MP_OBJ_TO_PTR(stream), mp_stream_write_adaptor};
+    mp_obj_print_helper(&print, obj, PRINT_JSON);
+    return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_ujson_dump_obj, mod_ujson_dump);
+
 STATIC mp_obj_t mod_ujson_dumps(mp_obj_t obj) {
     vstr_t vstr;
     mp_print_t print;
     vstr_init_print(&vstr, 8, &print);
     mp_obj_print_helper(&print, obj, PRINT_JSON);
-    return mp_obj_new_str_from_vstr(&mp_type_str, &vstr);
+    return mp_obj_new_str_from_utf8_vstr(&vstr);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_ujson_dumps_obj, mod_ujson_dumps);
+
+#endif
 
 // The function below implements a simple non-recursive JSON parser.
 //
@@ -89,11 +154,11 @@ STATIC mp_obj_t mod_ujson_load(mp_obj_t stream_obj) {
     stack.len = 0;
     stack.items = NULL;
     mp_obj_t stack_top = MP_OBJ_NULL;
-    mp_obj_type_t *stack_top_type = NULL;
+    const mp_obj_type_t *stack_top_type = NULL;
     mp_obj_t stack_key = MP_OBJ_NULL;
     S_NEXT(s);
     for (;;) {
-        cont:
+    cont:
         if (S_END(s)) {
             break;
         }
@@ -140,11 +205,21 @@ STATIC mp_obj_t mod_ujson_load(mp_obj_t stream_obj) {
                     if (c == '\\') {
                         c = S_NEXT(s);
                         switch (c) {
-                            case 'b': c = 0x08; break;
-                            case 'f': c = 0x0c; break;
-                            case 'n': c = 0x0a; break;
-                            case 'r': c = 0x0d; break;
-                            case 't': c = 0x09; break;
+                            case 'b':
+                                c = 0x08;
+                                break;
+                            case 'f':
+                                c = 0x0c;
+                                break;
+                            case 'n':
+                                c = 0x0a;
+                                break;
+                            case 'r':
+                                c = 0x0d;
+                                break;
+                            case 't':
+                                c = 0x09;
+                                break;
                             case 'u': {
                                 mp_uint_t num = 0;
                                 for (int i = 0; i < 4; i++) {
@@ -167,10 +242,19 @@ STATIC mp_obj_t mod_ujson_load(mp_obj_t stream_obj) {
                     goto fail;
                 }
                 S_NEXT(s);
-                next = mp_obj_new_str(vstr.buf, vstr.len, false);
+                next = mp_obj_new_str(vstr.buf, vstr.len);
                 break;
             case '-':
-            case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9': {
                 bool flt = false;
                 vstr_reset(&vstr);
                 for (;;) {
@@ -178,7 +262,7 @@ STATIC mp_obj_t mod_ujson_load(mp_obj_t stream_obj) {
                     cur = S_CUR(s);
                     if (cur == '.' || cur == 'E' || cur == 'e') {
                         flt = true;
-                    } else if (cur == '-' || unichar_isdigit(cur)) {
+                    } else if (cur == '+' || cur == '-' || unichar_isdigit(cur)) {
                         // pass
                     } else {
                         break;
@@ -186,7 +270,7 @@ STATIC mp_obj_t mod_ujson_load(mp_obj_t stream_obj) {
                     S_NEXT(s);
                 }
                 if (flt) {
-                    next = mp_parse_num_decimal(vstr.buf, vstr.len, false, false, NULL);
+                    next = mp_parse_num_float(vstr.buf, vstr.len, false, NULL);
                 } else {
                     next = mp_parse_num_integer(vstr.buf, vstr.len, 10, NULL);
                 }
@@ -252,7 +336,7 @@ STATIC mp_obj_t mod_ujson_load(mp_obj_t stream_obj) {
             }
         }
     }
-    success:
+success:
     // eat trailing whitespace
     while (unichar_isspace(S_CUR(s))) {
         S_NEXT(s);
@@ -268,15 +352,15 @@ STATIC mp_obj_t mod_ujson_load(mp_obj_t stream_obj) {
     vstr_clear(&vstr);
     return stack_top;
 
-    fail:
-    nlr_raise(mp_obj_new_exception_msg(&mp_type_ValueError, "syntax error in JSON"));
+fail:
+    mp_raise_ValueError(MP_ERROR_TEXT("syntax error in JSON"));
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_ujson_load_obj, mod_ujson_load);
 
 STATIC mp_obj_t mod_ujson_loads(mp_obj_t obj) {
-    size_t len;
-    const char *buf = mp_obj_str_get_data(obj, &len);
-    vstr_t vstr = {len, len, (char*)buf, true};
+    mp_buffer_info_t bufinfo;
+    mp_get_buffer_raise(obj, &bufinfo, MP_BUFFER_READ);
+    vstr_t vstr = {bufinfo.len, bufinfo.len, (char *)bufinfo.buf, true};
     mp_obj_stringio_t sio = {{&mp_type_stringio}, &vstr, 0, MP_OBJ_NULL};
     return mod_ujson_load(MP_OBJ_FROM_PTR(&sio));
 }
@@ -284,6 +368,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_1(mod_ujson_loads_obj, mod_ujson_loads);
 
 STATIC const mp_rom_map_elem_t mp_module_ujson_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ujson) },
+    { MP_ROM_QSTR(MP_QSTR_dump), MP_ROM_PTR(&mod_ujson_dump_obj) },
     { MP_ROM_QSTR(MP_QSTR_dumps), MP_ROM_PTR(&mod_ujson_dumps_obj) },
     { MP_ROM_QSTR(MP_QSTR_load), MP_ROM_PTR(&mod_ujson_load_obj) },
     { MP_ROM_QSTR(MP_QSTR_loads), MP_ROM_PTR(&mod_ujson_loads_obj) },
@@ -293,7 +378,9 @@ STATIC MP_DEFINE_CONST_DICT(mp_module_ujson_globals, mp_module_ujson_globals_tab
 
 const mp_obj_module_t mp_module_ujson = {
     .base = { &mp_type_module },
-    .globals = (mp_obj_dict_t*)&mp_module_ujson_globals,
+    .globals = (mp_obj_dict_t *)&mp_module_ujson_globals,
 };
 
-#endif //MICROPY_PY_UJSON
+MP_REGISTER_MODULE(MP_QSTR_ujson, mp_module_ujson);
+
+#endif // MICROPY_PY_UJSON

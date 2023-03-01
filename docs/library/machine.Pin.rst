@@ -33,8 +33,8 @@ Usage Model::
     # read and print the pin value
     print(p2.value())
 
-    # reconfigure pin #0 in input mode
-    p0.mode(p0.IN)
+    # reconfigure pin #0 in input mode with a pull down resistor
+    p0.init(p0.IN, p0.PULL_DOWN)
 
     # configure an irq callback
     p0.irq(lambda p:print(p))
@@ -42,7 +42,7 @@ Usage Model::
 Constructors
 ------------
 
-.. class:: Pin(id, mode=-1, pull=-1, \*, value, drive, alt)
+.. class:: Pin(id, mode=-1, pull=-1, *, value=None, drive=0, alt=-1)
 
    Access the pin peripheral (GPIO pin) associated with the given ``id``.  If
    additional arguments are given in the constructor then they are used to initialise
@@ -74,6 +74,8 @@ Constructors
        - ``Pin.ALT_OPEN_DRAIN`` - The Same as ``Pin.ALT``, but the pin is configured as
          open-drain.  Not all ports implement this mode.
 
+       - ``Pin.ANALOG`` - Pin is configured for analog input, see the :class:`ADC` class.
+
      - ``pull`` specifies if the pin has a (weak) pull resistor attached, and can be
        one of:
 
@@ -85,9 +87,9 @@ Constructors
        output pin value if given, otherwise the state of the pin peripheral remains
        unchanged.
 
-     - ``drive`` specifies the output power of the pin and can be one of: ``Pin.LOW_POWER``,
-       ``Pin.MED_POWER`` or ``Pin.HIGH_POWER``.  The actual current driving capabilities
-       are port dependent.  Not all ports implement this argument.
+     - ``drive`` specifies the output power of the pin and can be one of: ``Pin.DRIVE_0``,
+       ``Pin.DRIVE_1``, etc., increasing in drive strength.  The actual current driving
+       capabilities are port dependent.  Not all ports implement this argument.
 
      - ``alt`` specifies an alternate function for the pin and the values it can take are
        port dependent.  This argument is valid only for ``Pin.ALT`` and ``Pin.ALT_OPEN_DRAIN``
@@ -106,7 +108,7 @@ Constructors
 Methods
 -------
 
-.. method:: Pin.init(mode=-1, pull=-1, \*, value, drive, alt)
+.. method:: Pin.init(mode=-1, pull=-1, *, value=None, drive=0, alt=-1)
 
    Re-initialise the pin using the given parameters.  Only those arguments that
    are specified will be set.  The rest of the pin peripheral state will remain
@@ -160,26 +162,7 @@ Methods
 
    Set pin to "0" output level.
 
-.. method:: Pin.mode([mode])
-
-   Get or set the pin mode.
-   See the constructor documentation for details of the ``mode`` argument.
-
-.. method:: Pin.pull([pull])
-
-   Get or set the pin pull state.
-   See the constructor documentation for details of the ``pull`` argument.
-
-.. method:: Pin.drive([drive])
-
-   Get or set the pin drive strength.
-   See the constructor documentation for details of the ``drive`` argument.
-
-   Not all ports implement this method.
-
-   Availability: WiPy.
-
-.. method:: Pin.irq(handler=None, trigger=(Pin.IRQ_FALLING | Pin.IRQ_RISING), \*, priority=1, wake=None)
+.. method:: Pin.irq(handler=None, trigger=(Pin.IRQ_FALLING | Pin.IRQ_RISING), *, priority=1, wake=None, hard=False)
 
    Configure an interrupt handler to be called when the trigger source of the
    pin is active.  If the pin mode is ``Pin.IN`` then the trigger source is
@@ -191,7 +174,8 @@ Methods
    The arguments are:
 
      - ``handler`` is an optional function to be called when the interrupt
-       triggers.
+       triggers. The handler must take exactly one argument which is the
+       ``Pin`` instance.
 
      - ``trigger`` configures the event which can generate an interrupt.
        Possible values are:
@@ -212,7 +196,47 @@ Methods
        These values can also be OR'ed together to make a pin generate interrupts in
        more than one power mode.
 
+     - ``hard`` if true a hardware interrupt is used. This reduces the delay
+       between the pin change and the handler being called. Hard interrupt
+       handlers may not allocate memory; see :ref:`isr_rules`.
+       Not all ports support this argument.
+
    This method returns a callback object.
+
+The following methods are not part of the core Pin API and only implemented on certain ports.
+
+.. method:: Pin.low()
+
+   Set pin to "0" output level.
+
+   Availability: nrf, rp2, stm32 ports.
+
+.. method:: Pin.high()
+
+   Set pin to "1" output level.
+
+   Availability: nrf, rp2, stm32 ports.
+
+.. method:: Pin.mode([mode])
+
+   Get or set the pin mode.
+   See the constructor documentation for details of the ``mode`` argument.
+
+   Availability: cc3200, stm32 ports.
+
+.. method:: Pin.pull([pull])
+
+   Get or set the pin pull state.
+   See the constructor documentation for details of the ``pull`` argument.
+
+   Availability: cc3200, stm32 ports.
+
+.. method:: Pin.drive([drive])
+
+   Get or set the pin drive strength.
+   See the constructor documentation for details of the ``drive`` argument.
+
+   Availability: cc3200 port.
 
 Constants
 ---------
@@ -225,20 +249,24 @@ not all constants are available on all ports.
           Pin.OPEN_DRAIN
           Pin.ALT
           Pin.ALT_OPEN_DRAIN
+          Pin.ANALOG
 
    Selects the pin mode.
 
 .. data:: Pin.PULL_UP
           Pin.PULL_DOWN
+          Pin.PULL_HOLD
 
    Selects whether there is a pull up/down resistor.  Use the value
    ``None`` for no pull.
 
-.. data:: Pin.LOW_POWER
-          Pin.MED_POWER
-          Pin.HIGH_POWER
+.. data:: Pin.DRIVE_0
+          Pin.DRIVE_1
+          Pin.DRIVE_2
 
-   Selects the pin drive strength.
+   Selects the pin drive strength.  A port may define additional drive
+   constants with increasing number corresponding to increasing drive
+   strength.
 
 .. data:: Pin.IRQ_FALLING
           Pin.IRQ_RISING

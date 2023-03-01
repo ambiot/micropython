@@ -1,5 +1,5 @@
 /*
- * This file is part of the Micro Python project, http://micropython.org/
+ * This file is part of the MicroPython project, http://micropython.org/
  *
  * These math functions are taken from newlib-nano-2, the newlib/libm/common
  * directory, available from https://github.com/32bitmicro/newlib-nano-2.
@@ -25,9 +25,9 @@
 #include "fdlibm.h"
 
 #ifdef __STDC__
-static const float one = 1.0;
+static const float one = 1.0f;
 #else
-static float one = 1.0;
+static float one = 1.0f;
 #endif
 
 #ifdef __STDC__

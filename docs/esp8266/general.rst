@@ -1,3 +1,5 @@
+.. _esp8266_general:
+
 General information about the ESP8266 port
 ==========================================
 
@@ -6,16 +8,16 @@ ESP8266 is a popular WiFi-enabled System-on-Chip (SoC) by Espressif Systems.
 Multitude of boards
 -------------------
 
-There are a multitude of modules and boards from different sources which carry
+There is a multitude of modules and boards from different sources which carry
 the ESP8266 chip. MicroPython tries to provide a generic port which would run on
 as many boards/modules as possible, but there may be limitations. Adafruit
 Feather HUZZAH board is taken as a reference board for the port (for example,
 testing is performed on it). If you have another board, please make sure you
-have datasheet, schematics and other reference materials for your board
+have a datasheet, schematics and other reference materials for your board
 handy to look up various aspects of your board functioning.
 
 To make a generic ESP8266 port and support as many boards as possible,
-following design and implementation decision were made:
+the following design and implementation decision were made:
 
 * GPIO pin numbering is based on ESP8266 chip numbering, not some "logical"
   numbering of a particular board. Please have the manual/pin diagram of your board
@@ -115,13 +117,23 @@ Real-time clock
 
 RTC in ESP8266 has very bad accuracy, drift may be seconds per minute. As
 a workaround, to measure short enough intervals you can use
-``utime.time()``, etc. functions, and for wall clock time, synchronize from
+``time.time()``, etc. functions, and for wall clock time, synchronize from
 the net using included ``ntptime.py`` module.
 
 Due to limitations of the ESP8266 chip the internal real-time clock (RTC)
 will overflow every 7:45h.  If a long-term working RTC time is required then
 ``time()`` or ``localtime()`` must be called at least once within 7 hours.
 MicroPython will then handle the overflow.
+
+Simultaneous operation of STA_IF and AP_IF
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Simultaneous operation of STA_IF and AP_IF interfaces is supported.
+
+However, due to restrictions of the hardware, there may be performance
+issues in the AP_IF, if the STA_IF is not connected and searching.
+An application should manage these interfaces and for example
+deactivate the STA_IF in environments where only the AP_IF is used.
 
 Sockets and WiFi buffers overflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -138,10 +150,62 @@ The above may also happen after an application terminates and quits to the REPL
 for any reason including an exception. Subsequent arrival of data provokes the
 failure with the above error message repeatedly issued. So, sockets should be
 closed in any case, regardless whether an application terminates successfully
-or by an exeption, for example using try/finally::
+or by an exception, for example using try/finally::
 
     sock = socket(...)
     try:
         # Use sock
     finally:
         sock.close()
+
+
+SSL/TLS limitations
+~~~~~~~~~~~~~~~~~~~
+
+ESP8266 uses `axTLS <http://axtls.sourceforge.net/>`_ library, which is one
+of the smallest TLS libraries with compatible licensing. However, it
+also has some known issues/limitations:
+
+1. No support for Diffie-Hellman (DH) key exchange and Elliptic-curve
+   cryptography (ECC). This means it can't work with sites which require
+   the use of these features (it works ok with the typical sites that use
+   RSA certificates).
+2. Half-duplex communication nature. axTLS uses a single buffer for both
+   sending and receiving, which leads to considerable memory saving and
+   works well with protocols like HTTP. But there may be problems with
+   protocols which don't follow classic request-response model.
+
+Besides axTLS's own limitations, the configuration used for MicroPython is
+highly optimized for code size, which leads to additional limitations
+(these may be lifted in the future):
+
+3. Optimized RSA algorithms are not enabled, which may lead to slow
+   SSL handshakes.
+4. Session Reuse is not enabled, which means every connection must undergo
+   the full, expensive SSL handshake.
+
+Besides axTLS specific limitations described above, there's another generic
+limitation with usage of TLS on the low-memory devices:
+
+5. The TLS standard specifies the maximum length of the TLS record (unit
+   of TLS communication, the entire record must be buffered before it can
+   be processed) as 16KB. That's almost half of the available ESP8266 memory,
+   and inside a more or less advanced application would be hard to allocate
+   due to memory fragmentation issues. As a compromise, a smaller buffer is
+   used, with the idea that the most interesting usage for SSL would be
+   accessing various REST APIs, which usually require much smaller messages.
+   The buffers size is on the order of 5KB, and is adjusted from time to
+   time, taking as a reference being able to access https://google.com .
+   The smaller buffer however means that some sites can't be accessed using
+   it, and it's not possible to stream large amounts of data. axTLS does
+   have support for TLS's Max Fragment Size extension, but no HTTPS website
+   does, so use of the extension is really only effective for local
+   communication with other devices.
+
+There are also some not implemented features specifically in MicroPython's
+``ssl`` module based on axTLS:
+
+6. Certificates are not validated (this makes connections susceptible
+   to man-in-the-middle attacks).
+7. There is no support for client certificates (scheduled to be fixed in
+   1.9.4 release).

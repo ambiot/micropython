@@ -21,6 +21,7 @@ This summarises the points detailed below and lists the principal recommendation
 
 * Keep the code as short and simple as possible.
 * Avoid memory allocation: no appending to lists or insertion into dictionaries, no floating point.
+* Consider using ``micropython.schedule`` to work around the above constraint.
 * Where an ISR returns multiple bytes use a pre-allocated ``bytearray``. If multiple integers are to be
   shared between an ISR and the main program consider an array (``array.array``).
 * Where data is shared between the main program and an ISR, consider disabling interrupts prior to accessing
@@ -28,7 +29,7 @@ This summarises the points detailed below and lists the principal recommendation
 * Allocate an emergency exception buffer (see below).
 
 
-MicroPython Issues
+MicroPython issues
 ------------------
 
 The emergency exception buffer
@@ -41,6 +42,11 @@ for the purpose. Debugging is simplified if the following code is included in an
 
     import micropython
     micropython.alloc_emergency_exception_buf(100)
+
+The emergency exception buffer can only hold one exception stack trace. This means that if a second exception is
+thrown during the handling of an exception while the heap is locked, that second exception's stack trace will
+replace the original one - even if the second exception is cleanly handled. This can lead to confusing exception
+messages if the buffer is later printed.
 
 Simplicity
 ~~~~~~~~~~
@@ -79,7 +85,7 @@ example causes two LED's to flash at different rates.
             self.led.toggle()
 
     red = Foo(pyb.Timer(4, freq=1), pyb.LED(1))
-    greeen = Foo(pyb.Timer(2, freq=0.8), pyb.LED(2))
+    green = Foo(pyb.Timer(2, freq=0.8), pyb.LED(2))
 
 In this example the ``red`` instance associates timer 4 with LED 1: when a timer 4 interrupt occurs ``red.cb()``
 is called causing LED 1 to change state. The ``green`` instance operates similarly: a timer 2 interrupt
@@ -123,6 +129,32 @@ A means of creating an object without employing a class or globals is as follows
 The compiler instantiates the default ``buf`` argument when the function is
 loaded for the first time (usually when the module it's in is imported).
 
+An instance of object creation occurs when a reference to a bound method is
+created. This means that an ISR cannot pass a bound method to a function. One
+solution is to create a reference to the bound method in the class constructor
+and to pass that reference in the ISR. For example:
+
+.. code:: python
+
+    class Foo():
+        def __init__(self):
+            self.bar_ref = self.bar  # Allocation occurs here
+            self.x = 0.1
+            tim = pyb.Timer(4)
+            tim.init(freq=2)
+            tim.callback(self.cb)
+
+        def bar(self, _):
+            self.x *= 1.2
+            print(self.x)
+
+        def cb(self, t):
+            # Passing self.bar would cause allocation.
+            micropython.schedule(self.bar_ref, 0)
+
+Other techniques are to define and instantiate the method in the constructor
+or to pass :meth:`Foo.bar` with the argument *self*.
+
 Use of Python objects
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -158,13 +190,63 @@ On platforms with hardware floating point (such as the Pyboard) the inline ARM T
 round this limitation. This is because the processor stores float values in a machine word; values can be shared
 between the ISR and main program code via an array of floats.
 
+Using micropython.schedule
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This function enables an ISR to schedule a callback for execution "very soon". The callback is queued for
+execution which will take place at a time when the heap is not locked. Hence it can create Python objects
+and use floats. The callback is also guaranteed to run at a time when the main program has completed any
+update of Python objects, so the callback will not encounter partially updated objects.
+
+Typical usage is to handle sensor hardware. The ISR acquires data from the hardware and enables it to
+issue a further interrupt. It then schedules a callback to process the data.
+
+Scheduled callbacks should comply with the principles of interrupt handler design outlined below. This is to
+avoid problems resulting from I/O activity and the modification of shared data which can arise in any code
+which pre-empts the main program loop.
+
+Execution time needs to be considered in relation to the frequency with which interrupts can occur. If an
+interrupt occurs while the previous callback is executing, a further instance of the callback will be queued
+for execution; this will run after the current instance has completed. A sustained high interrupt repetition
+rate therefore carries a risk of unconstrained queue growth and eventual failure with a ``RuntimeError``.
+
+If the callback to be passed to `schedule()` is a bound method, consider the
+note in "Creation of Python objects".
+
 Exceptions
 ----------
 
 If an ISR raises an exception it will not propagate to the main loop. The interrupt will be disabled unless the
 exception is handled by the ISR code.
 
-General Issues
+Interfacing to uasyncio
+-----------------------
+
+When an ISR runs it can preempt the `uasyncio` scheduler. If the ISR performs a `uasyncio`
+operation the scheduler's operation can be disrupted. This applies whether the interrupt is hard
+or soft and also applies if the ISR has passed execution to another function via
+`micropython.schedule`. In particular creating or cancelling tasks is invalid in an ISR context.
+The safe way to interact with `uasyncio` is to implement a coroutine with synchronisation performed by
+`uasyncio.ThreadSafeFlag`. The following fragment illustrates the creation of a task in response
+to an interrupt:
+
+.. code:: python
+
+    tsf = uasyncio.ThreadSafeFlag()
+
+    def isr(_):  # Interrupt handler
+        tsf.set()
+
+    async def foo():
+        while True:
+            await tsf.wait()
+            uasyncio.create_task(bar())
+
+In this example there will be a variable amount of latency between the execution of the ISR and the execution
+of ``foo()``. This is inherent to cooperative scheduling. The maximum latency is application
+and platform dependent but may typically be measured in tens of ms.
+
+General issues
 --------------
 
 This is merely a brief introduction to the subject of real time programming. Beginners should note
@@ -175,7 +257,7 @@ with an appreciation of the following issues.
 
 .. _ISR:
 
-Interrupt Handler Design
+Interrupt handler design
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 As mentioned above, ISR's should be designed to be as simple as possible. They should always return in a short,
@@ -226,7 +308,7 @@ advanced topic beyond the scope of this tutorial.
 
 .. _Critical:
 
-Critical Sections
+Critical sections
 ~~~~~~~~~~~~~~~~~
 
 An example of a critical section of code is one which accesses more than one variable which can be affected by an ISR. If
@@ -284,8 +366,8 @@ A critical section can comprise a single line of code and a single variable. Con
 
 This example illustrates a subtle source of bugs. The line ``count += 1`` in the main loop carries a specific race
 condition hazard known as a read-modify-write. This is a classic cause of bugs in real time systems. In the main loop
-MicroPython reads the value of ``t.counter``, adds 1 to it, and writes it back. On rare occasions the  interrupt occurs
-after the read and before the write. The interrupt modifies ``t.counter`` but its change is overwritten by the main
+MicroPython reads the value of ``count``, adds 1 to it, and writes it back. On rare occasions the  interrupt occurs
+after the read and before the write. The interrupt modifies ``count`` but its change is overwritten by the main
 loop when the ISR returns. In a real system this could lead to rare, unpredictable failures.
 
 As mentioned above, care should be taken if an instance of a Python built in type is modified in the main code and
