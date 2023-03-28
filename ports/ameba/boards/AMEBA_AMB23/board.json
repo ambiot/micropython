@@ -1,0 +1,21 @@
+{
+    "deploy": [
+        "../deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "BLE5.0",
+        "SD Host",
+        "Codec",
+    ],
+    "images": [
+        "AMB23.jpg"
+    ],
+    "mcu": "AmebaD",
+    "product": "AMB23",
+    "thumbnail": "",
+    "url": "https://www.amebaiot.com/en/",
+    "vendor": "Ameba"
+}
+
+

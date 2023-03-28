@@ -104,13 +104,13 @@ soft_reset:
     readline_init0();
     modmachine_init();
 
-    // Execute _boot.py to set up the filesystem
-    pyexec_frozen_module("_boot.py");
-//    #if MICROPY_VFS_FAT &&  
-//    pyexec_frozen_module("_boot_fat.py");
-//    #else
-//    pyexec_frozen_module("_boot.py");
-//    #endif
+    // Set up file system
+    int stat  = interpret_sd_status(SD_Init());
+    if (stat != 0 ) {
+        pyexec_frozen_module("_boot.py");
+    } else {
+        pyexec_frozen_module("_boot_sd.py");
+    }
 
     // Execute user scripts.
     int ret = pyexec_file_if_exists("boot.py");

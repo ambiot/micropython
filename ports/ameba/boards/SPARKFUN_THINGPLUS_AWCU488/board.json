@@ -1,0 +1,20 @@
+{
+    "deploy": [
+        "../deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "Breadboard Friendly",
+        "Ai-Thinker",
+        "RGB LED",
+    ],
+    "images": [
+        "AWCU488.jpg"
+    ],
+    "mcu": "AmebaD",
+    "product": "AWCU488",
+    "thumbnail": "",
+    "url": "https://www.amebaiot.com/en/",
+    "vendor": "Ameba"
+}
+

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "mpconfigboard.h"
 
 // xm debug flag, defualt to 0 to remove certain sections of code
 // set to 1 to restore to orginal code
@@ -73,6 +74,8 @@
 //#define MICROPY_PY_USSL_FINALISER               (1)
 #define MICROPY_PY_STRUCT                       (1)
 #define MICROPY_PY_SYS                          (1)
+#define MICROPY_PY_SYS_PLATFORM                 "Realtek Ameba"
+#define MICROPY_HW_PORT_VERSION                 "1.0.2"
 #define MICROPY_PY_SYS_MODULES                  (1)
 #define MICROPY_PY_SYS_STDFILES                 (1)
 // extmod machine modules
@@ -191,22 +194,6 @@ extern const struct _mp_obj_module_t mp_network_module;
     { MP_OBJ_NEW_QSTR(MP_QSTR_errno),       MP_OBJ_FROM_PTR(&mp_module_uerrno) },   \
     { MP_OBJ_NEW_QSTR(MP_QSTR_select),      MP_OBJ_FROM_PTR(&mp_module_uselect) },  \
 */
-
-#define MICROPY_PY_SYS_PLATFORM             "Realtek Ameba"
-
-#define MICROPY_HW_PORT_VERSION             "1.0.2"
-
-#define MICROPY_HW_BOARD_NAME               MICROPY_PY_SYS_PLATFORM
-
-#if defined(RTL8722DM)
-#define MICROPY_HW_MCU_NAME                 "RTL8722DM"
-#elif defined(RTL8722DM_MINI)
-#define MICROPY_HW_MCU_NAME                 "RTL8722DM_MINI"
-#elif defined(BW16)
-#define MICROPY_HW_MCU_NAME                 "BW16"
-#else
-#error "Please specify the correct board name before re-try"
-#endif 
 
 #define MICROPY_WLAN_AP_DEFAULT_SSID        "YourSSID"
 #define MICROPY_WLAN_AP_DEFAULT_PASS        "YourPSWD"

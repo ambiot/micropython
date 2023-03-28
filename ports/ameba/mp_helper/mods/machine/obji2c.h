@@ -50,7 +50,7 @@ extern const mp_obj_type_t machine_hw_i2c_type;
 void _i2c_deinit0();
 
 //these two struct only to validate pin, peripharel and function fields don't mean anything
-#if defined(RTL8722DM)
+#if defined(AMEBA_AMB21) || defined(AI_THINKER_BW16) || defined(SPARKFUN_THINGPLUS_AWCU488) || defined(AMEBA_AMB25)
 static const PinMap PinMap_I2C_SDA[] = {
     {PA_26, I2C_0,      1}, // 1 for pull up
     {NC,    NC,     0}
@@ -61,7 +61,7 @@ static const PinMap PinMap_I2C_SCL[] = {
     {NC,    NC,     0}
 };
 
-#elif defined(RTL8722DM_MINI)
+#elif defined(AMEBA_AMB23)
 static const PinMap PinMap_I2C_SDA[] = {
     {PB_0, I2C_0,      1},
     //{PB_6, I2C_0,      1},
@@ -75,16 +75,7 @@ static const PinMap PinMap_I2C_SCL[] = {
    
     {NC,    NC,     0}
 };
-#elif defined(BW16)
-static const PinMap PinMap_I2C_SDA[] = {
-    {PA_26, I2C_0,      1},
-    {NC,    NC,     0}
-};
 
-static const PinMap PinMap_I2C_SCL[] = {
-    {PA_25, I2C_0,     1},
-    {NC,    NC,     0}
-};
 #else
 #error "Please specify the correct board name before re-try"
 #endif 

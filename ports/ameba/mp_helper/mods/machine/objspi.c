@@ -37,18 +37,7 @@ static uint8_t id = 0; // default SPI idx id is 0
 
 spi_t mp_spi_obj[SPI_MAX];  // MBED obj 
 
-#if defined(RTL8722DM)
-STATIC spi_obj_t spi_obj[2] = {
-    {.base.type = &machine_spi_type, .unit = 0, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
-    {.base.type = &machine_spi_type, .unit = 1, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
-};
-
-#elif defined(RTL8722DM_MINI)
-STATIC spi_obj_t spi_obj[2] = {
-    {.base.type = &machine_spi_type, .unit = 0, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
-    {.base.type = &machine_spi_type, .unit = 1, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
-};
-#elif defined(BW16)
+#if defined(AMEBA_AMB21) || defined(AMEBA_AMB23) || defined(AI_THINKER_BW16) || defined(SPARKFUN_THINGPLUS_AWCU488) || defined(AMEBA_AMB25)
 STATIC spi_obj_t spi_obj[2] = {
     {.base.type = &machine_spi_type, .unit = 0, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },
     {.base.type = &machine_spi_type, .unit = 1, .bits = 8, .baudrate = SPI_DEFAULT_BAUD_RATE, .pol = SCPOL_INACTIVE_IS_LOW, .pha = SCPH_TOGGLES_IN_MIDDLE },

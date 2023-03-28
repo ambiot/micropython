@@ -28,10 +28,10 @@
 #include "py/builtin.h"
 
 const char ameba_mp_help_text[] =
-"Welcome to use MicroPython_Ameba Ameba Port!\n"
+"Welcome to MicroPython Ameba Port!\n"
 "\n"
 "For more information about this port please visit\n"
-"https://github.com/ambiot/ambd_micropython/tree/master/MicroPython_RTL8722/ports/rtl8722\n"
+"https://github.com/ambiot/micropython/tree/ameba"
 "\n"
 "For online docs please visit http://docs.micropython.org/\n"
 "\n"

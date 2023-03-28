@@ -491,7 +491,7 @@ STATIC MP_DEFINE_CONST_DICT(socket_locals_dict, socket_locals_dict_table);
 
 STATIC const mp_obj_type_t socket_type = {
     { &mp_type_type },
-    .name = MP_QSTR_SOCK,
+    .name = MP_QSTR_socket,
     .make_new = socket_make_new,
     .locals_dict = (mp_obj_t)&socket_locals_dict,
 };
@@ -500,7 +500,7 @@ STATIC const mp_obj_type_t socket_type = {
 
 STATIC const mp_rom_map_elem_t mp_module_socket_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__),            MP_ROM_QSTR(MP_QSTR_usocket) },
-    { MP_ROM_QSTR(MP_QSTR_SOCK),              MP_ROM_PTR(&socket_type) },
+    { MP_ROM_QSTR(MP_QSTR_socket),              MP_ROM_PTR(&socket_type) },
     // module constants
     { MP_ROM_QSTR(MP_QSTR_AF_INET),             MP_ROM_INT(AF_INET) },
     { MP_ROM_QSTR(MP_QSTR_AF_INET6),            MP_ROM_INT(AF_INET6) },

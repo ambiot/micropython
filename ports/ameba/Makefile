@@ -1,31 +1,39 @@
+# Makefile for MicroPython on Ameba
+
 include ../../py/mkenv.mk
 
+# select the board to build for, the default board is AMEBA_AMB21
+BOARD ?= AMEBA_AMB21
+BOARD_DIR ?= boards/$(BOARD)
+
+ifeq ($(wildcard $(BOARD_DIR)/.),)
+$(error Invalid BOARD specified: $(BOARD_DIR))
+endif
+
+include $(BOARD_DIR)/mpconfigboard.mk
 
 # declare before py.mk
-FROZEN_MANIFEST ?= manifest.py
+FROZEN_MANIFEST ?= boards/manifest.py
 
-MICROPY_VFS_FAT ?= 1
-MICROPY_VFS_LFS2 ?= 1
-
+# include py core make definition
 include $(TOP)/py/py.mk
 
 OS := $(shell uname)
 CHIP := AMEBAD
-BOARD := RTL8722DM_MINI
 DEBUG := 1
 VENDOR := ../../lib/ameba_sdk/sdk
 TOOL := amebad_tool/tools
 
 
-
-$(info ## This build now supports Cygwin, Linux and MacOS)
+$(info ## This build now supports Windows, Linux and MacOS)
 $(info ## Please specify which board you are building for, currently supported boards:)
 $(info    )
-$(info    * RTL8722DM)
-$(info    * RTL8722DM_MINI)
-$(info    * BW16)
+$(info    * AMEBA_AMB21)
+$(info    * AMEBA_AMB23)
+$(info    * AI_THINKER_BW16)
+$(info    * SPARKFUN_THINGPLUS_AWCU488)
+$(info    * AMEBA_AMB25)
 $(info    )
-$(info ## Now building for: $(BOARD))
 
 
 # Declaring tools depending on OS
@@ -49,6 +57,7 @@ PICK = pick.exe
 PAD  = pad.exe
 BUILDTOOL_PATH := tools/windows
 UPLOAD_PATH ?= COM8
+AUTO_UPLOAD ?= Disable
 POSTBUILDTOOL_PATH := amebad_tool/tools/windows
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross.exe
 LINKER_SCRIPT = 
@@ -73,6 +82,7 @@ PICK = pick
 PAD  = pad
 BUILDTOOL_PATH := tools/linux
 UPLOAD_PATH ?= /dev/ttyS5
+AUTO_UPLOAD ?= Disable
 POSTBUILDTOOL_PATH := amebad_tool/tools/linux
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
 LINKER_SCRIPT = 
@@ -97,6 +107,7 @@ PICK = pick
 PAD  = pad
 BUILDTOOL_PATH := tools/macos
 UPLOAD_PATH ?= /dev/ttyUSB0
+AUTO_UPLOAD ?= Disable
 POSTBUILDTOOL_PATH := amebad_tool/tools/macos
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
 LINKER_SCRIPT = 
@@ -113,6 +124,7 @@ INC += -I$(VENDOR)/project/realtek_amebaD_va0_example/inc/inc_hp
 INC += -I$(TOP)
 INC += -I$(BUILD)
 INC += -I$(HEADER_BUILD)
+INC += -I$(BOARD_DIR)
 INC += -I$(VENDOR)/component/os/freertos
 INC += -I$(VENDOR)/component/os/freertos/freertos_v10.2.0/Source/include
 INC += -I$(VENDOR)/component/os/freertos/freertos_v10.2.0/Source/portable/GCC/ARM_CM33/non_secure
@@ -199,7 +211,7 @@ INC += -Imp_helper/mods/machine
 
 # Micropython Port Source file list
 # -------------------------------------------------------------------
-UPY_C += pins.c
+UPY_C += $(BOARD_DIR)/pins.c
 UPY_C += mphalport.c
 UPY_C += mp_helper/diskio.c
 # UPY_C += mp_helper/flashbdev.c
@@ -321,7 +333,7 @@ application: prerequirement $(OBJ)
 	$(Q)echo '==========================================================='
 	$(Q)echo 'Linking object code'
 	$(Q)echo '==========================================================='
-	$(LD) -L$(LINKER_SCRIPT) -L$(TC_PATH)../lib -T$(LINKER_SCRIPT)rlx8721d_img2_is_micropython.ld $(LFLAGS) -Wl,-Map=$(BUILD)/Preprocessed_image2.map $(LIBFLAGS) -o $(BUILD)/$(TARGET).axf $(OBJ) $(LIBAR) -lm
+	$(LD) -L$(LINKER_SCRIPT) -L$(TC_PATH)../lib -T$(LINKER_SCRIPT)boards/rlx8721d_img2_is_micropython.ld $(LFLAGS) -Wl,-Map=$(BUILD)/Preprocessed_image2.map $(LIBFLAGS) -o $(BUILD)/$(TARGET).axf $(OBJ) $(LIBAR) -lm
 	$(Q)$(OBJDUMP) -d $(BUILD)/$(TARGET).axf > $(BUILD)/Preprocessed_image2.asm
 
 
@@ -373,7 +385,13 @@ manipulate_images: $(POSTBUILD)
 .PHONY: upload
 upload: $(IMAGETOOL)
 	$(Q)echo '## Make sure Ameba serial port name has been correctly updated in the Makefile!'
-	./$(BUILD)/$(IMAGETOOL) ./ $(UPLOAD_PATH) ameba_rtl8722dm_mini Disable Disable 1500000
+	./$(BUILD)/$(IMAGETOOL) ./ $(UPLOAD_PATH) AMEBA $(AUTO_UPLOAD) Disable 1500000
+
+
+.PHONY: erase
+erase: $(IMAGETOOL)
+	$(Q)echo '## Make sure Ameba serial port name has been correctly updated in the Makefile!'
+	./$(BUILD)/$(IMAGETOOL) ./ $(UPLOAD_PATH) AMEBA $(AUTO_UPLOAD) Enable 1500000
 
 
 .PHONY: purge
@@ -393,7 +411,7 @@ cleanpwd:
 com:
 	@if [ $(findstring CYGWIN, $(OS)) = CYGWIN ]; \
 		then ttermpro /C=8 /BAUD=115200; \
-		else mpremote connect $(UPLOAD_PATH); fi
+		else mpremote connect $(PORT); fi
 
 
 .PHONY: release

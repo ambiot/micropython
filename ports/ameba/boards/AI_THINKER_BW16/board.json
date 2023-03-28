@@ -1,0 +1,20 @@
+{
+    "deploy": [
+        "../deploy.md"
+    ],
+    "docs": "",
+    "features": [
+        "Breadboard Friendly",
+        "Ai-Thinker",
+        "RGB LED",
+    ],
+    "images": [
+        "BW16.jpg"
+    ],
+    "mcu": "AmebaD",
+    "product": "BW16",
+    "thumbnail": "",
+    "url": "https://www.amebaiot.com/en/",
+    "vendor": "Ameba"
+}
+

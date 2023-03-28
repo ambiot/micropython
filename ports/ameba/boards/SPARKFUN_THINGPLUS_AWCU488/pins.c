@@ -23,7 +23,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
+ 
 #include "objpin.h"
 
 
@@ -46,200 +46,51 @@
 }
 
 
-/////////////////////////////////////////
-//                                     //
-//     Pin Definition for RTL8722DM    //
-//                                     //
-/////////////////////////////////////////
-#if defined(RTL8722DM)
-const PinMap PinMap_UART_TX[] = {
-    AF(PA_21, UART, _0, PullUp),
-    AF(PA_26, UART, _3, PullUp),
-    
-    {NC,    NC,     0}
-};
 
-const PinMap PinMap_UART_RX[] = {
-    AF(PA_22, UART, _0, PullUp),
-    AF(PA_25, UART, _3, PullUp),
-    
-    {NC,    NC,     0}
-};
-
-
-const PinMap PinMap_I2C_SDA[] = {
-    AF(PA_26, I2C, _0, PullUp),
-    //AF(PB_6, I2C, _0, PullUp),
-
-    {NC,    NC,     0}
-};
-
-const PinMap PinMap_I2C_SCL[] = {
-    AF(PA_25, I2C, _0, PullUp),
-    //AF(PB_5, I2C, _0, PullUp),
-   
-    {NC,    NC,     0}
-};
-
-const PinMap PinMap_PWM[] = {
-    AF(PA_23,  PWM, _2, PullNone),
-    AF(PA_24, PWM, _3, PullNone),
-    AF(PA_25,  PWM, _4, PullNone),
-    AF(PA_26, PWM, _5, PullNone),
-/*
-    AF(PB_4, PWM, _8, PullNone),
-    AF(PB_5, PWM, _9, PullNone),
-    AF(PB_7, PWM, _17, PullNone),
-    AF(PB_18, PWM, _10, PullNone),
-    AF(PB_19, PWM, _11, PullNone),
-    AF(PB_20,  PWM, _12, PullNone),
-    AF(PB_21, PWM, _13, PullNone),
-    AF(PB_22, PWM, _14, PullNone),
-    AF(PB_23, PWM, _15, PullNone),
-*/
-    {NC,    NC,     0}
-};
-
-// BF is only for SPI, right now only support master mode
-#define BF(pin_name, af_name, af_index, pull) \
-{ \
-    .pin        = pin_name,                                 \
-    .peripheral = af_name ## af_index,                      \
-    .function   = PIN_DATA(pull, PINMUX_FUNCTION_ ## af_name ## M) \
-}
-
-const PinMap PinMap_SPI_MOSI[] = {
-    BF(PB_18, SPI, _0, 0),
-    BF(PB_4, SPI, _1, 1),
-
-    {NC,    NC,     0}
-};
-
-const PinMap PinMap_SPI_MISO[] = {
-    BF(PB_19, SPI, _0, 0),
-    BF(PB_5, SPI, _1, 1),
-
-    {NC,    NC,     0}
-};
-
-
-/////////////////////////////////////////
-//                                     //
-//  Pin Definition for RTL8722DM_MINI  //
-//                                     //
-/////////////////////////////////////////
-#elif defined(RTL8722DM_MINI)
-const PinMap PinMap_UART_TX[] = {
-    AF(PB_1, UART, _2, PullUp),
-    AF(PA_21, UART, _1, PullUp),
-    
-    {NC,    NC,     0}
-};
-
-const PinMap PinMap_UART_RX[] = {
-    AF(PB_2, UART, _2, PullUp),
-    AF(PA_22, UART, _1, PullUp),
-
-    {NC,    NC,     0}
-};
-
-
-const PinMap PinMap_I2C_SDA[] = {
-    AF(PB_0, I2C, _0, PullUp),
-    //AF(PB_6, I2C, _0, PullUp),
-
-    {NC,    NC,     0}
-};
-
-const PinMap PinMap_I2C_SCL[] = {
-    AF(PA_31, I2C, _0, PullUp),
-    //AF(PB_5, I2C, _0, PullUp),
-   
-    {NC,    NC,     0}
-};
-
-
-typedef enum {
-    PWM_6 = 7,
-    PWM_7,
-    PWM_8,
-    PWM_9
-} PWMName_MP;
-
-const PinMap PinMap_PWM[] = {
-    AF(PB_4, PWM, _0, PullNone),
-    AF(PB_5, PWM, _1, PullNone),
-    AF(PB_7, PWM, _2, PullNone),
-    AF(PA_12,  PWM, _3, PullNone),
-    AF(PA_13, PWM, _4, PullNone),
-    AF(PA_23,  PWM, _5, PullNone),
-    AF(PA_24, PWM, _6, PullNone),
-    AF(PA_28,  PWM, _7, PullNone),
-    AF(PA_30, PWM, _8, PullNone),
-    {NC,    NC,     0}
-};
-
-// BF is only for SPI, right now only support master mode
-#define BF(pin_name, af_name, af_index, pull) \
-{ \
-    .pin        = pin_name,                                 \
-    .peripheral = af_name ## af_index,                      \
-    .function   = PIN_DATA(pull, PINMUX_FUNCTION_ ## af_name ## M) \
-}
-
-const PinMap PinMap_SPI_MOSI[] = {
-    BF(PA_12, SPI, _0, 0),
-
-    {NC,    NC,     0}
-};
-
-const PinMap PinMap_SPI_MISO[] = {
-    BF(PA_13, SPI, _0, 0),
-
-    {NC,    NC,     0}
-};
-
-////////////////////////////////////////////
-//                                        //
-//     Pin Definition for BW16(RTL8720DN) //
-//                                        //
-////////////////////////////////////////////
-#elif defined(BW16)
+#if defined(SPARKFUN_THINGPLUS_AWCU488)
 const PinMap PinMap_UART_TX[] = {
     AF(PB_1, UART, _0, PullUp),
+    AF(PA_12, UART, _1, PullUp),
     {NC,    NC,     0}
 };
 
 const PinMap PinMap_UART_RX[] = {
     AF(PB_2, UART, _0, PullUp),
+    AF(PA_13, UART, _1, PullUp),
     {NC,    NC,     0}
 };
 
 
 const PinMap PinMap_I2C_SDA[] = {
     AF(PA_26, I2C, _0, PullUp),
+//    AF(PB_6, I2C, _1, PullUp),
     {NC,    NC,     0}
 };
 
 const PinMap PinMap_I2C_SCL[] = {
     AF(PA_25, I2C, _0, PullUp),
+//    AF(PB_5, I2C, _1, PullUp),
     {NC,    NC,     0}
 };
 
 typedef enum {
     PWM_6 = 7,
     PWM_7,
-    PWM_8,
-    PWM_9
+    PWM_8
 } PWMName_MP;
 
 
 const PinMap PinMap_PWM[] = {
-    AF(PA_12,  PWM, _2, PullNone),
-    AF(PA_13, PWM, _3, PullNone),
-    AF(PA_25,  PWM, _4, PullNone),
+    AF(PA_12,  PWM, _0, PullNone),
+    AF(PA_13, PWM, _1, PullNone),
+    AF(PB_7, PWM, _2, PullNone),
+    AF(PB_5, PWM, _3, PullNone),
+    AF(PB_4, PWM, _4, PullNone),
+    AF(PA_28, PWM, _5, PullNone),
     AF(PA_26, PWM, _5, PullNone),
-    AF(PA_30, PWM, _6, PullNone),
+    AF(PA_25, PWM, _6, PullNone),
+    AF(PB_23, PWM, _7, PullNone),
+    AF(PB_22, PWM, _8, PullNone),
     {NC,    NC,     0}
 };
 
@@ -403,3 +254,6 @@ STATIC const mp_map_elem_t pin_board_pins_locals_dict_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_PB_31), MP_OBJ_FROM_PTR(&pin_PB_31)},
 };
 MP_DEFINE_CONST_DICT(pin_board_pins_locals_dict, pin_board_pins_locals_dict_table);
+
+
+
