@@ -45,20 +45,17 @@
     .function   = PIN_DATA(pull, PINMUX_FUNCTION_ ## af_name) \
 }
 
-#if defined(AMEBA_AMB21)
+#if defined(AMEBA_AMB26)
 const PinMap PinMap_UART_TX[] = {
-    AF(PA_21, UART, _0, PullUp),
-    AF(PA_26, UART, _1, PullUp),
-    AF(PA_19, UART, _2, PullUp),
-    AF(PB_1 , UART, _3, PullUp),
+    AF(PB_19, UART, _0, PullUp),
+    AF(PA_12, UART, _1, PullUp),
+    
     {NC,    NC,     0}
 };
 
 const PinMap PinMap_UART_RX[] = {
-    AF(PA_22, UART, _0, PullUp),
-    AF(PA_25, UART, _1, PullUp),
-    AF(PA_18, UART, _2, PullUp),
-    AF(PB_2 , UART, _3, PullUp),
+    AF(PB_18, UART, _0, PullUp),
+    AF(PA_13, UART, _1, PullUp),
     {NC,    NC,     0}
 };
 
@@ -82,26 +79,33 @@ typedef enum {
     PWM_7,
     PWM_8,
     PWM_9,
-    PWM_10, 
-    PWM_11, 
-    PWM_12
+    PWM_10
 } PWMName_MP;
 
 
 const PinMap PinMap_PWM[] = {
-    AF(PA_23,  PWM, _0, PullNone),
-    AF(PA_24, PWM, _1, PullNone),
-    AF(PA_25,  PWM, _2, PullNone),
-    AF(PA_26, PWM, _3, PullNone),
-    AF(PB_4, PWM, _4, PullNone),
-    AF(PB_5, PWM, _5, PullNone),
-    AF(PB_7, PWM, _6, PullNone),
-    AF(PB_18, PWM, _7, PullNone),
+    AF(PA_13,  PWM, _0, PullNone),
+    AF(PA_12, PWM, _1, PullNone),
+    // AF(PA_30,  PWM, _2, PullNone),
+    AF(PA_28, PWM, _3, PullNone),
+    AF(PA_26, PWM, _4, PullNone),
+    AF(PA_25, PWM, _5, PullNone),
+    AF(PB_23, PWM, _6, PullNone),
+    AF(PB_22, PWM, _7, PullNone),
     AF(PB_19, PWM, _8, PullNone),
-    AF(PB_20,  PWM, _9, PullNone),
+    AF(PB_18, PWM, _9, PullNone),
     AF(PB_21, PWM, _10, PullNone),
-    AF(PB_22, PWM, _11, PullNone),
-    AF(PB_23, PWM, _12, PullNone),
+/*
+    AF(PB_4, PWM, _8, PullNone),
+    AF(PB_5, PWM, _9, PullNone),
+    AF(PB_7, PWM, _17, PullNone),
+    AF(PB_18, PWM, _10, PullNone),
+    AF(PB_19, PWM, _11, PullNone),
+    AF(PB_20,  PWM, _12, PullNone),
+    AF(PB_21, PWM, _13, PullNone),
+    AF(PB_22, PWM, _14, PullNone),
+    AF(PB_23, PWM, _15, PullNone),
+*/
     {NC,    NC,     0}
 };
 
@@ -115,13 +119,13 @@ const PinMap PinMap_PWM[] = {
 
 const PinMap PinMap_SPI_MOSI[] = {
     BF(PB_18, SPI, _0, 0),
-    BF(PB_4, SPI, _1, 1),
+    BF(PA_12, SPI, _1, 1),
     {NC,    NC,     0}
 };
 
 const PinMap PinMap_SPI_MISO[] = {
     BF(PB_19, SPI, _0, 0),
-    BF(PB_5, SPI, _1, 1),
+    BF(PA_13, SPI, _1, 1),
     {NC,    NC,     0}
 };
 

@@ -33,6 +33,7 @@ $(info    * AMEBA_AMB23)
 $(info    * AI_THINKER_BW16)
 $(info    * SPARKFUN_THINGPLUS_AWCU488)
 $(info    * AMEBA_AMB25)
+$(info    * AMEBA_AMB26)
 $(info    )
 
 
