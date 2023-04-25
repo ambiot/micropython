@@ -92,7 +92,7 @@ extern const PinMap PinMap_SPI_MISO[];
 #define SPI_1_SCLK  PB_6
 #define SPI_1_CS    PB_7
 
-#elif defined(AMEBA_AMB25)
+#elif defined(AMEBA_AMB25) || defined(AMEBA_AMB26)
 // SPI0 (S1)
 #define SPI_0_MOSI  PB_18
 #define SPI_0_MISO  PB_19
