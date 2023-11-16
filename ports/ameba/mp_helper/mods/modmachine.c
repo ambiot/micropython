@@ -46,6 +46,9 @@
 #include "machine/objsdcard.h"
 #include "machine/objflash.h"
 #include "machine/objwdt.h"
+#include "us_ticker_api.h"
+
+#define TICK_READ_FROM_CPU 0
 /*
 #include "machine/objcrypto.h"
 */
@@ -105,10 +108,44 @@ STATIC mp_obj_t machine_deepsleep(mp_obj_t duration_in) {
 MP_DEFINE_CONST_FUN_OBJ_1(machine_deepsleep_obj, machine_deepsleep);
 #endif // end of checking for 'machine_deepsleep'
 
+MP_WEAK mp_uint_t machine_time_pulse_us(mp_obj_t self_in, int pulse_level, mp_uint_t timeout_us) {
+    mp_uint_t start =  (mp_uint_t)us_ticker_read();
+    pin_obj_t *self = self_in;
+    // printf("%d\n", gpio_read((gpio_t *)&(self->obj)) );
+    while (gpio_read((gpio_t *)&(self->obj)) != pulse_level) {
+        if ((mp_uint_t)((mp_uint_t)us_ticker_read() - start) >= timeout_us) {
+            return (mp_uint_t)-2;
+        }
+    }
+    start = (mp_uint_t)us_ticker_read();
+    while (gpio_read((gpio_t *)&(self->obj)) == pulse_level) {
+        if ((mp_uint_t)((mp_uint_t)us_ticker_read() - start) >= timeout_us) {
+            return (mp_uint_t)-1;
+        }
+    }
+    return (mp_uint_t)((mp_uint_t)us_ticker_read() - start);
+}
+
+STATIC mp_obj_t machine_time_pulse_us_(size_t n_args, const mp_obj_t *args) {
+    mp_hal_pin_obj_t pin = mp_hal_get_pin_obj(args[0]);
+    int level = 0;
+    if (mp_obj_is_true(args[1])) {
+        level = 1;
+    }
+    mp_uint_t timeout_us = 1000000;
+    if (n_args > 2) {
+        timeout_us = mp_obj_get_int(args[2]);
+    }
+    mp_uint_t us = machine_time_pulse_us(pin, level, timeout_us);
+    // May return -1 or -2 in case of timeout
+    return mp_obj_new_int(us);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(machine_time_pulse_us_obj, 2, 3, machine_time_pulse_us_);
+
 STATIC const mp_map_elem_t machine_module_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR___name__),      MP_OBJ_NEW_QSTR(MP_QSTR_umachine) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_reboot),        MP_OBJ_FROM_PTR(&machine_reset_obj) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_memInfo),          MP_OBJ_FROM_PTR(&machine_info_obj) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_memInfo),       MP_OBJ_FROM_PTR(&machine_info_obj) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_UART),          MP_OBJ_FROM_PTR(&uart_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_Pin),           MP_OBJ_FROM_PTR(&pin_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_Timer),         MP_OBJ_FROM_PTR(&timer_type) },
@@ -118,8 +155,10 @@ STATIC const mp_map_elem_t machine_module_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_SPI),           MP_OBJ_FROM_PTR(&machine_spi_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_ADC),           MP_OBJ_FROM_PTR(&adc_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_WDT),           MP_OBJ_FROM_PTR(&wdt_type) },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_SDCard),          MP_OBJ_FROM_PTR(&sdcard_type) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_SDCard),        MP_OBJ_FROM_PTR(&sdcard_type) },
     { MP_OBJ_NEW_QSTR(MP_QSTR_FLASH),         MP_OBJ_FROM_PTR(&flash_type) },
+    { MP_OBJ_NEW_QSTR(MP_QSTR_time_pulse_us), MP_OBJ_FROM_PTR(&machine_time_pulse_us_obj) },
+
     #if 0
     { MP_OBJ_NEW_QSTR(MP_QSTR_CRYPTO),        MP_OBJ_FROM_PTR(&crypto_type) },
     #endif

@@ -3,3 +3,4 @@
 
 void uart_repl_init(void);
 
+uint32_t mp_hal_ticks_us(void);
