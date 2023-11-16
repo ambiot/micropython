@@ -3,7 +3,7 @@
 include ../../py/mkenv.mk
 
 # select the board to build for, the default board is AMEBA_AMB21
-BOARD ?= AMEBA_AMB21
+BOARD ?= AI_THINKER_BW16
 BOARD_DIR ?= boards/$(BOARD)
 
 ifeq ($(wildcard $(BOARD_DIR)/.),)
@@ -82,7 +82,7 @@ IMAGETOOL = upload_image_tool_linux
 PICK = pick
 PAD  = pad
 BUILDTOOL_PATH := tools/linux
-UPLOAD_PATH ?= /dev/ttyS5
+UPLOAD_PATH ?= /dev/ttyUSB0
 AUTO_UPLOAD ?= Disable
 POSTBUILDTOOL_PATH := amebad_tool/tools/linux
 MPY_CROSS = $(TOP)/mpy-cross/mpy-cross
